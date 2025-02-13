@@ -5,7 +5,6 @@ from ext_template.tasks.locomotion.velocity.velocity_env_cfg import LocomotionVe
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets.robots.anymal import ANYMAL_D_CFG  # isort: skip
 from ext_template.assets.panda import PANDA_CFG
 
 
@@ -16,6 +15,15 @@ class PandaRoughEnvCfg(LocomotionVelocityRoughEnvCfg):
         super().__post_init__()
         # switch robot to anymal-d
         self.scene.robot = PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        # overwrite links names for panda
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/base_link"
+        self.events.add_base_mass.params["asset_cfg"].body_names = "base_link"
+        self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 1.0)
+        self.events.base_external_force_torque.params["asset_cfg"].body_names = "base_link"
+        self.rewards.feet_air_time.params["sensor_cfg"].body_names = ".*d_Link"
+        self.rewards.undesired_contacts.params["sensor_cfg"].body_names = [".*u_Link", "base_link"]
+        self.terminations.base_contact.params["sensor_cfg"].body_names = ["base_link", ".*u_Link"]
+
 
 
 @configclass

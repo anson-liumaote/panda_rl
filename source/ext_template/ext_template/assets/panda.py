@@ -4,11 +4,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 
-"""Configuration for the Boston Dynamics robot.
-
-The following configuration parameters are available:
-
-* :obj:`SPOT_CFG`: The Spot robot with delay PD and remote PD actuators.
+"""
+Configuration for 12 dof panda.
 """
 
 import isaaclab.sim as sim_utils
@@ -20,6 +17,8 @@ from ext_template.assets import ISAACLAB_ASSETS_DATA_DIR
 PANDA_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
         usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/Panda/reddog/urdf/reddog/reddog.usd",
+        # usd_path="/home/csl/isaaclab-4.5/panda_rl/source/ext_template/data/Robots/Panda/reddog/urdf/reddog/reddog.usd",
+        # usd_path="/home/csl/Downloads/reddog/urdf/reddog/reddog.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -37,14 +36,18 @@ PANDA_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.5),
         joint_pos={
-            ".*": 0.0,  # all knees
+            ".*_hx": 0.0,  # all knees
+            "f[lr]_hy": 0.57,
+            "f[lr]_kn": -0.57,
+            "h[lr]_hy": -0.57,
+            "h[lr]_kn": 0.57,
         },
         joint_vel={".*": 0.0},
     ),
     actuators={
-        "spot_hip": DelayedPDActuatorCfg(
+        "joint_actuator": DelayedPDActuatorCfg(
             joint_names_expr=[".*"],
-            effort_limit=10.0,
+            effort_limit=2.0,
             stiffness=20.0,
             damping=0.5,
             min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
