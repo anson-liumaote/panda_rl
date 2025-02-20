@@ -1,0 +1,955 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- This URDF was automatically created by SolidWorks to URDF Exporter! Originally created by Stephen Brawner (brawner@gmail.com) 
+     Commit Version: 1.6.0-4-g7f85cfe  Build Version: 1.6.7995.38578
+     For more information, please see http://wiki.ros.org/sw_urdf_exporter -->
+<robot
+  name="reddog">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.00032 -0.00003 0.00386"
+        rpy="0 0 0" />
+      <mass
+        value="2.38753" />
+      <inertia
+        ixx="0.00650389501"
+        ixy="-0.000179287"
+        ixz="-0.0001597051"
+        iyy="0.02042876948"
+        iyz="-0.00000267819"
+        izz="0.02487682627" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/base_link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 0.035 0 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/base_link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="fr_Link">
+    <inertial>
+      <origin
+        xyz="0.03750 -0.01393 0.0"
+        rpy="0 0 0" />
+      <mass
+        value="0.32473" />
+      <inertia
+        ixx="0.00012291908"
+        ixy="-0.00000496280"
+        ixz="0.00000007899"
+        iyy="0.00013972037"
+        iyz="-0.00000000714"
+        izz="0.00013011507" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fr_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fr_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fr_hx"
+    type="revolute">
+    <origin
+      xyz="0.127999974999998 -0.055 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="fr_Link" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.57"
+      upper="0.3"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="fru_Link">
+    <inertial>
+      <origin
+        xyz="-0.00008 -0.02579 -0.12125"
+        rpy="0 0 0" />
+      <mass
+        value="0.35357" />
+      <inertia
+        ixx="0.00041943341"
+        ixy="-0.00000052181"
+        ixz="0.00000045071"
+        iyy="0.00042643346"
+        iyz="0.00005718492"
+        izz="0.00014104233" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fru_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fru_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fr_hy"
+    type="revolute">
+    <origin
+      xyz="0.0385000250000002 -0.0374999999999999 0"
+      rpy="0 0 0" />
+    <parent
+      link="fr_Link" />
+    <child
+      link="fru_Link" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="0.0"
+      upper="2.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="frd_Link">
+    <inertial>
+      <origin
+        xyz="-0.0001 -0.0096 -0.04114"
+        rpy="0 0 0" />
+      <mass
+        value="0.03373" />
+      <inertia
+        ixx="0.00006234913"
+        ixy="-0.00000000707"
+        ixz="-0.00000034059"
+        iyy="0.00006890782"
+        iyz="-0.00000175731"
+        izz="0.00000753192" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/frd_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/frd_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fr_kn"
+    type="revolute">
+    <origin
+      xyz="0 -0.0409852014855582 -0.130000000000001"
+      rpy="-1.5707963267949 0 0" />
+    <parent
+      link="fru_Link" />
+    <child
+      link="frd_Link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.0"
+      upper="0.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="frf_Link">
+    <inertial>
+      <origin
+        xyz="-0.00001 -0.00005 -0.00146"
+        rpy="0 0 0" />
+      <mass
+        value="0.00654" />
+      <inertia
+        ixx="0.00000066418"
+        ixy="0.00000000005"
+        ixz="-0.00000000039"
+        iyy="0.00000068295"
+        iyz="0.00000000177"
+        izz="0.00000076297" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/frf_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/frf_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fr_ft"
+    type="fixed">
+    <origin
+      xyz="0 0.130000000000001 -0.00975923997471564"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="frd_Link" />
+    <child
+      link="frf_Link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="fl_Link">
+    <inertial>
+      <origin
+        xyz="0.03750 0.01393 0.00000"
+        rpy="0 0 0" />
+      <mass
+        value="0.32473" />
+      <inertia
+        ixx="0.00012292038"
+        ixy="0.00000496261"
+        ixz="0.00000007969"
+        iyy="0.00013972071"
+        iyz="0.00000000717"
+        izz="0.00013011450" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fl_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fl_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fl_hx"
+    type="revolute">
+    <origin
+      xyz="0.127999974999998 0.055 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="fl_Link" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.3"
+      upper="0.57"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="flu_Link">
+    <inertial>
+      <origin
+        xyz="-0.00008 0.02578 -0.12122"
+        rpy="0 0 0" />
+      <mass
+        value="0.35375" />
+      <inertia
+        ixx="0.00042045013"
+        ixy="0.00000052140"
+        ixz="0.00000045227"
+        iyy="0.00042741692"
+        iyz="-0.00005735669"
+        izz="0.00014114837" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/flu_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/flu_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fl_hy"
+    type="revolute">
+    <origin
+      xyz="0.038500025 0.0375 0"
+      rpy="0 0 0" />
+    <parent
+      link="fl_Link" />
+    <child
+      link="flu_Link" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="0.0"
+      upper="2.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="fld_Link">
+    <inertial>
+      <origin
+        xyz="-0.00010 0.00960 -0.04114"
+        rpy="0 0 0" />
+      <mass
+        value="0.03373" />
+      <inertia
+        ixx="0.00006235204"
+        ixy="0.0000000724"
+        ixz="-0.00000033924"
+        iyy="0.00006890451"
+        iyz="0.00000175787"
+        izz="0.00000752568" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fld_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/fld_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fl_kn"
+    type="revolute">
+    <origin
+      xyz="0 0.0409852014855579 -0.130000000000001"
+      rpy="-1.5707963267949 0 0" />
+    <parent
+      link="flu_Link" />
+    <child
+      link="fld_Link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-2.0"
+      upper="0.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="flf_Link">
+    <inertial>
+      <origin
+        xyz="-0.00001 0.00005 -0.00146"
+        rpy="0 0 0" />
+      <mass
+        value="0.00654" />
+      <inertia
+        ixx="0.00000066415"
+        ixy="-0.00000000005"
+        ixz="-0.00000000039"
+        iyy="0.00000068295"
+        iyz="-0.00000000177"
+        izz="0.00000076300" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/flf_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/flf_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="fl_ft"
+    type="fixed">
+    <origin
+      xyz="0 0.13 0.00975923997471576"
+      rpy="1.5707963267949 0 0" />
+    <parent
+      link="fld_Link" />
+    <child
+      link="flf_Link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="bl_Link">
+    <inertial>
+      <origin
+        xyz="-0.03750 0.01393 0.00000"
+        rpy="0 0 0" />
+      <mass
+        value="0.32473" />
+      <inertia
+        ixx="0.00012292045"
+        ixy="-0.00000496259"
+        ixz="0.00000007856"
+        iyy="0.00013972071"
+        iyz="-0.00000000719"
+        izz="0.00013011443" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/bl_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/bl_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hl_hx"
+    type="revolute">
+    <origin
+      xyz="-0.127999975000005 0.055000000000013 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="bl_Link" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.3"
+      upper="0.57"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="blu_Link">
+    <inertial>
+      <origin
+        xyz="0.00008 -0.02579 -0.12125"
+        rpy="0 0 0" />
+      <mass
+        value="0.35357" />
+      <inertia
+        ixx="0.00041946533"
+        ixy="0.00000052143"
+        ixz="0.00000045094"
+        iyy="0.00042645957"
+        iyz="-0.00000057191"
+        izz="0.00014103773" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/blu_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/blu_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hl_hy"
+    type="revolute">
+    <origin
+      xyz="-0.038500024999994 0.0374999999999811 0"
+      rpy="0 0 0" />
+    <parent
+      link="bl_Link" />
+    <child
+      link="blu_Link" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-2.0"
+      upper="0.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="bld_Link">
+    <inertial>
+      <origin
+        xyz="-0.00010 0.00960 -0.04114"
+        rpy="0 0 0" />
+      <mass
+        value="0.03373" />
+      <inertia
+        ixx="0.000062352"
+        ixy="0.0000000724"
+        ixz="-0.00000033924"
+        iyy="0.000068904"
+        iyz="0.00000175787"
+        izz="0.00000752568" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/bld_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/bld_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hl_kn"
+    type="revolute">
+    <origin
+      xyz="0 0.0409852014855522 -0.130000000000005"
+      rpy="-1.57079632679497 0 0" />
+    <parent
+      link="blu_Link" />
+    <child
+      link="bld_Link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0.0"
+      upper="2.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="blf_Link">
+    <inertial>
+      <origin
+        xyz="-0.00001 0.00005 -0.00146"
+        rpy="0 0 0" />
+      <mass
+        value="0.00654" />
+      <inertia
+        ixx="0.00000066418"
+        ixy="-0.00000000004"
+        ixz="-0.00000000039"
+        iyy="0.00000068288"
+        iyz="-0.00000000175"
+        izz="0.00000076303" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/blf_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/blf_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hl_ft"
+    type="fixed">
+    <origin
+      xyz="0 0.129999999999972 0.00975923997471473"
+      rpy="1.57079632679497 0 0" />
+    <parent
+      link="bld_Link" />
+    <child
+      link="blf_Link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+  <link
+    name="br_Link">
+    <inertial>
+      <origin
+        xyz="-0.03750 -0.01393 0.00000"
+        rpy="0 0 0" />
+      <mass
+        value="0.32473" />
+      <inertia
+        ixx="0.00012291948"
+        ixy="0.00000496276"
+        ixz="0.00000007786"
+        iyy="0.00013972036"
+        iyz="0.00000000719"
+        izz="0.00013011468" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/br_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/br_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hr_hx"
+    type="revolute">
+    <origin
+      xyz="-0.127999975000003 -0.0549999999999869 0"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="br_Link" />
+    <axis
+      xyz="1 0 0" />
+    <limit
+      lower="-0.57"
+      upper="0.3"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="bru_Link">
+    <inertial>
+      <origin
+        xyz="-0.00008 -0.02579 -0.12125"
+        rpy="0 0 0" />
+      <mass
+        value="0.35357" />
+      <inertia
+        ixx="0.00041943337"
+        ixy="-0.00000052188"
+        ixz="0.00000045069"
+        iyy="0.00042643342"
+        iyz="0.00000057184"
+        izz="0.00014104233" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/bru_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/bru_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hr_hy"
+    type="revolute">
+    <origin
+      xyz="-0.0385000250000004 -0.0375000000000083 0"
+      rpy="0 0 0" />
+    <parent
+      link="br_Link" />
+    <child
+      link="bru_Link" />
+    <axis
+      xyz="0 1 0" />
+    <limit
+      lower="-2.0"
+      upper="0.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="brd_Link">
+    <inertial>
+      <origin
+        xyz="-0.0001 -0.0096 -0.04114"
+        rpy="0 0 0" />
+      <mass
+        value="0.03373" />
+      <inertia
+        ixx="0.000062349"
+        ixy="-0.00000000707"
+        ixz="-0.00000034059"
+        iyy="0.000068907"
+        iyz="-0.00000175731"
+        izz="0.00000753192" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/brd_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/brd_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hr_kn"
+    type="revolute">
+    <origin
+      xyz="0 -0.040985201485545 -0.130000000000005"
+      rpy="-1.57079632679483 0 0" />
+    <parent
+      link="bru_Link" />
+    <child
+      link="brd_Link" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="0.0"
+      upper="2.0"
+      effort="0.0"
+      velocity="0.0" />
+  </joint>
+  <link
+    name="brf_Link">
+    <inertial>
+      <origin
+        xyz="-0.00001 -0.00005 -0.00146"
+        rpy="0 0 0" />
+      <mass
+        value="0.00654" />
+      <inertia
+        ixx="0.00066421"
+        ixy="0.00000000005"
+        ixz="-0.00000000039"
+        iyy="0.00068287"
+        iyz="0.00000000175"
+        izz="0.00076299" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/brf_Link.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.037 0.037 0.037 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://reddog/meshes/brf_Link.STL" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="hr_ft"
+    type="fixed">
+    <origin
+      xyz="0 0.130000000000003 -0.00975923997473169"
+      rpy="1.57079632679483 0 0" />
+    <parent
+      link="brd_Link" />
+    <child
+      link="brf_Link" />
+    <axis
+      xyz="0 0 0" />
+  </joint>
+</robot>
