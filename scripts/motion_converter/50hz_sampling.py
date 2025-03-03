@@ -51,13 +51,12 @@ def resample_joint_poses(input_file, output_file, target_freq=50, blend_range=5)
         resampled_joints[:, i] = interpolator(new_timestamps)
     
     # Apply blending weights at the start and end
-    blend_frames = int(blend_range * (target_freq / len(timestamps)) * duration)
-    for i in range(blend_frames):
-        weight = i / blend_frames
-        resampled_joints[i] = (1 - weight) * resampled_joints[-blend_frames + i] + weight * resampled_joints[i]
-        resampled_joints[-i-1] = weight * resampled_joints[blend_frames-i-1] + (1 - weight) * resampled_joints[-i-1]
+    # blend_frames = int(blend_range * (target_freq / len(timestamps)) * duration)
+    # for i in range(blend_frames):
+    #     weight = i / blend_frames
+    #     resampled_joints[i] = (1 - weight) * resampled_joints[-blend_frames + i] + weight * resampled_joints[i]
+    #     resampled_joints[-i-1] = weight * resampled_joints[blend_frames-i-1] + (1 - weight) * resampled_joints[-i-1]
     
-    print('bbb')
     # Save the resampled data
     np.savetxt(output_file, resampled_joints, fmt='%.6f', delimiter=' ')
     
@@ -66,7 +65,7 @@ def resample_joint_poses(input_file, output_file, target_freq=50, blend_range=5)
 # Example usage
 if __name__ == "__main__":
    
-    input_file = "scripts/motion_converter/joint_angles_20250220_171555.txt"
+    input_file = "scripts/motion_converter/joint_angles_20250228_140420.txt"
     output_file = input_file.replace('.txt', '_resampled.txt')
     
     resampled_data = resample_joint_poses(input_file, output_file)

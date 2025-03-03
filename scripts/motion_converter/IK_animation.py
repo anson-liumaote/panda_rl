@@ -10,7 +10,7 @@ def load_joint_data(filename):
     # Reshape to (frames, 4 legs, 3 joints)
     return data.reshape(-1, 4, 3)
 
-def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0365, hu=0.065, hl=0.065):
+def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0375, hu=0.13, hl=0.13):
     """
     Calculate end-effector position given joint angles.
     gamma: hip joint angle (yaw)
@@ -19,11 +19,18 @@ def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0365, hu=0.065, hl=0.0
     leg_index: 0=FR, 1=FL, 2=HR, 3=HL
     """
     
+    # # Apply x-axis biases
+    # x_bias = 0.09067 if leg_index < 2 else -0.09067  # Front legs positive, hind legs negative
+    
+    # # Apply y-axis biases
+    # y_bias = 0.085 if leg_index in [1, 3] else -0.085  # FL and HL positive, FR and HR negative
+
+    
     # Apply x-axis biases
-    x_bias = 0.09067 if leg_index < 2 else -0.09067  # Front legs positive, hind legs negative
+    x_bias = 0.128 if leg_index < 2 else -0.128  # Front legs positive, hind legs negative
     
     # Apply y-axis biases
-    y_bias = 0.085 if leg_index in [1, 3] else -0.085  # FL and HL positive, FR and HR negative
+    y_bias = 0.055 if leg_index in [1, 3] else -0.055  # FL and HL positive, FR and HR negative
     
     h = h if leg_index in [1, 3] else -h  # FL and HL positive, FR and HR negative
 
@@ -136,7 +143,7 @@ class QuadrupedAnimation:
 
 def main():
     # Load joint data
-    joint_data = load_joint_data('scripts/motion_converter/joint_angles_20250220_171555.txt')
+    joint_data = load_joint_data('scripts/motion_converter/joint_angles_20250228_140404_resampled.txt')
     
     # Create and run animation
     anim = QuadrupedAnimation(joint_data)
