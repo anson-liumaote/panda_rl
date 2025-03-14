@@ -4,18 +4,72 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 
 def load_joint_data(filename):
-    """Load joint angles from file."""
+    """
+    Load joint angles from file.
+    New joint order: FL_hip, FR_hip, RL_hip, RR_hip, FL_thigh, FR_thigh, RL_thigh, RR_thigh, FL_calf, FR_calf, RL_calf, RR_calf
+    """
     data = np.loadtxt(filename)
     data = data[:, :12]  # Only take the first 12 columns
-    # Reshape to (frames, 4 legs, 3 joints)
-    return data.reshape(-1, 4, 3)
+    
+    # Reshape to intermediate format (frames, 12 joints)
+    frames = data.shape[0]
+    reshaped_data = data.reshape(frames, 12)
+    
+    # Initialize the new array with the reordered joints
+    # Result will be (frames, 4 legs, 3 joints)
+    result = np.zeros((frames, 4, 3))
+    
+    # Map the joints according to new order:
+    # FL = 0, FR = 1, RL = 2, RR = 3
+    # For each leg: [hip, thigh, calf]
+    
+    # Hip joints: 0-3
+    result[:, 0, 0] = reshaped_data[:, 0]  # FL hip
+    result[:, 1, 0] = reshaped_data[:, 1]  # FR hip
+    result[:, 2, 0] = reshaped_data[:, 2]  # RL hip
+    result[:, 3, 0] = reshaped_data[:, 3]  # RR hip
+    
+    # Thigh joints: 4-7
+    result[:, 0, 1] = reshaped_data[:, 4]  # FL thigh
+    result[:, 1, 1] = reshaped_data[:, 5]  # FR thigh
+    result[:, 2, 1] = reshaped_data[:, 6]  # RL thigh
+    result[:, 3, 1] = reshaped_data[:, 7]  # RR thigh
+    
+    # Calf joints: 8-11
+    result[:, 0, 2] = reshaped_data[:, 8]   # FL calf
+    result[:, 1, 2] = reshaped_data[:, 9]   # FR calf
+    result[:, 2, 2] = reshaped_data[:, 10]  # RL calf
+    result[:, 3, 2] = reshaped_data[:, 11]  # RR calf
+    
+    return result
 
 def load_endpoint_data(filename):
-    """Load endpoint positions from file."""
+    """
+    Load endpoint positions from file.
+    New endpoint order: FL, FR, RL, RR (each with x, y, z coordinates)
+    """
     data = np.loadtxt(filename)
     data = data[:, :12]  # Only take the first 12 columns
-    # Reshape to (frames, 4 legs, 3 coordinates)
-    return data.reshape(-1, 4, 3)
+    
+    # Reshape to intermediate format (frames, 12 coordinates)
+    frames = data.shape[0]
+    reshaped_data = data.reshape(frames, 12)
+    
+    # Initialize the new array with the reordered endpoints
+    # Result will be (frames, 4 legs, 3 coordinates)
+    result = np.zeros((frames, 4, 3))
+    
+    # Map the endpoints according to new order:
+    # FL = 0, FR = 1, RL = 2, RR = 3
+    # For each leg: [x, y, z]
+    
+    for i in range(4):
+        # For each leg, copy x, y, z coordinates
+        result[:, i, 0] = reshaped_data[:, i*3]     # x coordinate
+        result[:, i, 1] = reshaped_data[:, i*3 + 1] # y coordinate
+        result[:, i, 2] = reshaped_data[:, i*3 + 2] # z coordinate
+    
+    return result
 
 def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0375, hu=0.13, hl=0.13):
     """
@@ -23,15 +77,15 @@ def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0375, hu=0.13, hl=0.13
     gamma: hip joint angle (yaw)
     alpha: shoulder joint angle (pitch)
     beta: knee joint angle (pitch)
-    leg_index: 0=FR, 1=FL, 2=HR, 3=HL
+    leg_index: 0=FL, 1=FR, 2=RL, 3=RR
     """
     # Apply x-axis biases
     x_bias = 0.128 if leg_index < 2 else -0.128  # Front legs positive, hind legs negative
     
-    # Apply y-axis biases
-    y_bias = 0.055 if leg_index in [1, 3] else -0.055  # FL and HL positive, FR and HR negative
+    # Apply y-axis biases (updated for new leg order)
+    y_bias = 0.055 if leg_index in [0, 2] else -0.055  # FL and RL positive, FR and RR negative
     
-    h = h if leg_index in [1, 3] else -h  # FL and HL positive, FR and HR negative
+    h = h if leg_index in [0, 2] else -h  # FL and RL positive, FR and RR negative
 
     # Base position with bias
     base_pos = np.array([x_bias, y_bias, 0])
@@ -88,9 +142,9 @@ class CombinedQuadrupedAnimation:
         self.ax2 = self.fig.add_subplot(122, projection='3d')
         self.ax2.set_title('Recorded Endpoints')
         
-        # Initialize lines and markers for each leg with different colors
-        self.leg_colors = ['red', 'blue', 'green', 'orange']  # FR, FL, HR, HL
-        self.leg_names = ['Front Right', 'Front Left', 'Hind Right', 'Hind Left']
+        # Initialize lines and markers for each leg with different colors (updated for new leg order)
+        self.leg_colors = ['blue', 'red', 'green', 'orange']  # FL, FR, RL, RR
+        self.leg_names = ['Front Left', 'Front Right', 'Rear Left', 'Rear Right']
         
         # Joint-based lines (left plot)
         self.joint_lines = [self.ax1.plot([], [], [], f'{color}', label=f'{name}')[0] 
@@ -174,7 +228,7 @@ class CombinedQuadrupedAnimation:
                 self.path_lines[leg_idx].set_3d_properties(path_array[:, 2])
         
         # Update base rectangle lines for joint-based plot
-        # Order: FR -> FL -> HL -> HR -> FR
+        # Order: FL -> FR -> RR -> RL -> FL (updated for new leg order)
         base_order = [0, 1, 3, 2, 0]  # Connect back to first point to close rectangle
         for i in range(4):
             start_idx = base_order[i]
@@ -215,8 +269,8 @@ class CombinedQuadrupedAnimation:
 
 def main():
     # Set the file paths directly
-    joint_file = 'scripts/motion_converter/joint_angles_20250228_140415.txt'
-    endpoint_file = 'scripts/motion_converter/leg_endpoints_20250306_120153.txt'  # Adjust this to match your endpoint file name
+    joint_file = 'scripts/motion_converter/joint_angles_20250228_140351_resampled_reordered.txt'
+    endpoint_file = 'scripts/motion_converter/joint_angles_20250228_140351_resampled_reordered_foot_endpoints.txt'  # Adjust this to match your endpoint file name
     
     # Load joint data and endpoint data
     print(f"Loading joint data from {joint_file}")

@@ -4,18 +4,44 @@ from matplotlib.animation import FuncAnimation
 from mpl_toolkits.mplot3d import Axes3D
 
 def load_joint_data(filename):
-    """Load joint angles from file."""
+    """
+    Load joint angles from file.
+    New joint order: FL_hip, FR_hip, RL_hip, RR_hip, FL_thigh, FR_thigh, RL_thigh, RR_thigh, FL_calf, FR_calf, RL_calf, RR_calf
+    """
     data = np.loadtxt(filename)
     data = data[:, :12]  # Only take the first 12 columns
-    # Reshape to (frames, 4 legs, 3 joints)
-    return data.reshape(-1, 4, 3)
-
-def load_endpoint_data(filename):
-    """Load endpoint positions from file."""
-    data = np.loadtxt(filename)
-    data = data[:, :12]  # Only take the first 12 columns
-    # Reshape to (frames, 4 legs, 3 coordinates)
-    return data.reshape(-1, 4, 3)
+    
+    # Reshape to intermediate format (frames, 12 joints)
+    frames = data.shape[0]
+    reshaped_data = data.reshape(frames, 12)
+    
+    # Initialize the new array with the reordered joints
+    # Result will be (frames, 4 legs, 3 joints)
+    result = np.zeros((frames, 4, 3))
+    
+    # Map the joints according to new order:
+    # FL = 0, FR = 1, RL = 2, RR = 3
+    # For each leg: [hip, thigh, calf]
+    
+    # Hip joints: 0-3
+    result[:, 0, 0] = reshaped_data[:, 0]  # FL hip
+    result[:, 1, 0] = reshaped_data[:, 1]  # FR hip
+    result[:, 2, 0] = reshaped_data[:, 2]  # RL hip
+    result[:, 3, 0] = reshaped_data[:, 3]  # RR hip
+    
+    # Thigh joints: 4-7
+    result[:, 0, 1] = reshaped_data[:, 4]  # FL thigh
+    result[:, 1, 1] = reshaped_data[:, 5]  # FR thigh
+    result[:, 2, 1] = reshaped_data[:, 6]  # RL thigh
+    result[:, 3, 1] = reshaped_data[:, 7]  # RR thigh
+    
+    # Calf joints: 8-11
+    result[:, 0, 2] = reshaped_data[:, 8]   # FL calf
+    result[:, 1, 2] = reshaped_data[:, 9]   # FR calf
+    result[:, 2, 2] = reshaped_data[:, 10]  # RL calf
+    result[:, 3, 2] = reshaped_data[:, 11]  # RR calf
+    
+    return result
 
 def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0375, hu=0.13, hl=0.13):
     """
@@ -23,15 +49,15 @@ def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0375, hu=0.13, hl=0.13
     gamma: hip joint angle (yaw)
     alpha: shoulder joint angle (pitch)
     beta: knee joint angle (pitch)
-    leg_index: 0=FR, 1=FL, 2=HR, 3=HL
+    leg_index: 0=FL, 1=FR, 2=RL, 3=RR
     """
     # Apply x-axis biases
     x_bias = 0.128 if leg_index < 2 else -0.128  # Front legs positive, hind legs negative
     
-    # Apply y-axis biases
-    y_bias = 0.055 if leg_index in [1, 3] else -0.055  # FL and HL positive, FR and HR negative
+    # Apply y-axis biases (updated for new leg order)
+    y_bias = 0.055 if leg_index in [0, 2] else -0.055  # FL and RL positive, FR and RR negative
     
-    h = h if leg_index in [1, 3] else -h  # FL and HL positive, FR and HR negative
+    h = h if leg_index in [0, 2] else -h  # FL and RL positive, FR and RR negative
 
     # Base position with bias
     base_pos = np.array([x_bias, y_bias, 0])
@@ -72,6 +98,50 @@ def forward_kinematics(gamma, alpha, beta, leg_index, h=0.0375, hu=0.13, hl=0.13
     
     return base_pos, p1, p2, p3
 
+def compute_endpoints(joint_data):
+    """
+    Compute all foot endpoints based on joint angles using forward kinematics.
+    
+    Args:
+        joint_data: Array of shape (frames, 4 legs, 3 joints)
+        
+    Returns:
+        endpoint_data: Array of shape (frames, 4 legs, 3 coordinates)
+    """
+    frames = joint_data.shape[0]
+    endpoint_data = np.zeros((frames, 4, 3))
+    
+    for frame in range(frames):
+        for leg_idx in range(4):
+            gamma, alpha, beta = joint_data[frame, leg_idx]
+            _, _, _, p3 = forward_kinematics(gamma, alpha, beta, leg_idx)
+            endpoint_data[frame, leg_idx] = p3
+    
+    return endpoint_data
+
+def save_endpoints_to_file(endpoint_data, output_file):
+    """
+    Save endpoint data to a text file in the format:
+    fl_x fl_y fl_z fr_x fr_y fr_z rl_x rl_y rl_z rr_x rr_y rr_z
+    
+    Args:
+        endpoint_data: Array of shape (frames, 4 legs, 3 coordinates)
+        output_file: Path to save the endpoint data
+    """
+    # Reshape data to match the required format
+    frames = endpoint_data.shape[0]
+    flattened_data = np.zeros((frames, 12))
+    
+    for frame in range(frames):
+        for leg_idx in range(4):
+            for coord_idx in range(3):
+                flattened_data[frame, leg_idx*3 + coord_idx] = endpoint_data[frame, leg_idx, coord_idx]
+    
+    # Save to file with 6 decimal precision
+    np.savetxt(output_file, flattened_data, fmt='%.6f', delimiter=' ')
+    
+    return output_file
+
 class CombinedQuadrupedAnimation:
     def __init__(self, joint_data, endpoint_data):
         self.joint_data = joint_data
@@ -86,11 +156,11 @@ class CombinedQuadrupedAnimation:
         
         # Right subplot for recorded endpoints
         self.ax2 = self.fig.add_subplot(122, projection='3d')
-        self.ax2.set_title('Recorded Endpoints')
+        self.ax2.set_title('Computed Endpoints')
         
-        # Initialize lines and markers for each leg with different colors
-        self.leg_colors = ['red', 'blue', 'green', 'orange']  # FR, FL, HR, HL
-        self.leg_names = ['Front Right', 'Front Left', 'Hind Right', 'Hind Left']
+        # Initialize lines and markers for each leg with different colors (updated for new leg order)
+        self.leg_colors = ['blue', 'red', 'green', 'orange']  # FL, FR, RL, RR
+        self.leg_names = ['Front Left', 'Front Right', 'Rear Left', 'Rear Right']
         
         # Joint-based lines (left plot)
         self.joint_lines = [self.ax1.plot([], [], [], f'{color}', label=f'{name}')[0] 
@@ -126,7 +196,7 @@ class CombinedQuadrupedAnimation:
         self.frame_text = self.fig.text(0.5, 0.02, 'Frame: 0', ha='center')
         
         # Set figure title
-        self.fig.suptitle('Quadruped Leg Animation - Comparison', fontsize=16)
+        self.fig.suptitle('Quadruped Leg Animation', fontsize=16)
 
     def update(self, frame):
         # Update frame counter
@@ -174,7 +244,7 @@ class CombinedQuadrupedAnimation:
                 self.path_lines[leg_idx].set_3d_properties(path_array[:, 2])
         
         # Update base rectangle lines for joint-based plot
-        # Order: FR -> FL -> HL -> HR -> FR
+        # Order: FL -> FR -> RR -> RL -> FL (updated for new leg order)
         base_order = [0, 1, 3, 2, 0]  # Connect back to first point to close rectangle
         for i in range(4):
             start_idx = base_order[i]
@@ -214,25 +284,36 @@ class CombinedQuadrupedAnimation:
         return anim
 
 def main():
-    # Set the file paths directly
-    joint_file = 'scripts/motion_converter/joint_angles_20250228_140415.txt'
-    endpoint_file = 'scripts/motion_converter/leg_endpoints_20250306_120153.txt'  # Adjust this to match your endpoint file name
+    # Set the file paths
+    joint_file = "scripts/motion_converter/joint_angles_20250228_140351_resampled_reordered.txt"
+    endpoint_file = joint_file.replace('.txt', '_foot_endpoints.txt')
     
-    # Load joint data and endpoint data
+    # Load joint data
     print(f"Loading joint data from {joint_file}")
     joint_data = load_joint_data(joint_file)
+    print(f"Joint data shape: {joint_data.shape}")
     
-    print(f"Loading endpoint data from {endpoint_file}")
-    endpoint_data = load_endpoint_data(endpoint_file)
+    # Compute and save endpoint data
+    print("Computing foot endpoints from joint angles...")
+    endpoint_data = compute_endpoints(joint_data)
     
-    print(f"Joint data shape: {joint_data.shape}, Endpoint data shape: {endpoint_data.shape}")
+    print(f"Saving foot endpoints to {endpoint_file}")
+    save_endpoints_to_file(endpoint_data, endpoint_file)
+    print(f"Endpoint data saved with shape: {endpoint_data.shape}")
     
-    # Create and run animation
-    anim = CombinedQuadrupedAnimation(joint_data, endpoint_data)
-    animation = anim.animate()
-    
-    # Uncomment the following to save the animation
-    # animation.save('quadruped_animation.mp4', writer='ffmpeg', fps=20)
+    # Ask if user wants to visualize
+    viz_response = input("Do you want to visualize the animation? (y/n): ")
+    if viz_response.lower() == 'y':
+        # Create and run animation
+        anim = CombinedQuadrupedAnimation(joint_data, endpoint_data)
+        animation = anim.animate()
+        
+        # Uncomment the following to save the animation
+        # save_response = input("Do you want to save the animation? (y/n): ")
+        # if save_response.lower() == 'y':
+        #     output_video = input("Enter the output video file path (e.g., animation.mp4): ")
+        #     animation.save(output_video, writer='ffmpeg', fps=20)
+        #     print(f"Animation saved to {output_video}")
 
 if __name__ == "__main__":
     main()

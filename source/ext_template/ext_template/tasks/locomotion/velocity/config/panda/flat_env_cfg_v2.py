@@ -16,7 +16,7 @@ from isaaclab.utils import configclass
 from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 from isaaclab.utils.noise import AdditiveUniformNoiseCfg as Unoise
 
-import ext_template.tasks.locomotion.velocity.config.spot.mdp as spot_mdp
+import ext_template.tasks.locomotion.velocity.config.panda.mdp as spot_mdp
 # import isaaclab_tasks.manager_based.locomotion.velocity.config.spot.mdp as spot_mdp
 # import ext_template.tasks.locomotion.velocity.mdp as mdp
 import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
@@ -25,7 +25,14 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Lo
 ##
 # Pre-defined configs
 ##
-from ext_template.assets.panda import PANDA_CFG
+from ext_template.assets.panda import REDDOG_CFG
+
+
+
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# All rights reserved.
+#
+# SPDX-License-Identifier: BSD-3-Clause
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -66,7 +73,7 @@ class SpotCommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(0.3, 0.3), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0)
+            lin_vel_x=(0.15, 0.15), lin_vel_y=(0.0, 0.0), ang_vel_z=(0.0, 0.0)
         ),
     )
 
@@ -99,6 +106,7 @@ class SpotObservationsCfg:
             func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
         actions = ObsTerm(func=mdp.last_action)
+        current_step = ObsTerm(func=spot_mdp.motion_sequence_counter, params={"asset_cfg": SceneEntityCfg("robot")})
 
         def __post_init__(self):
             self.enable_corruption = False
@@ -130,7 +138,7 @@ class SpotEventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "mass_distribution_params": (0.0, 0.1),
+            "mass_distribution_params": (-0.3, 0.5),
             "operation": "add",
         },
     )
@@ -194,21 +202,21 @@ class SpotEventCfg:
 @configclass
 class SpotRewardsCfg:
     # -- task
-    air_time = RewardTermCfg(
-        func=spot_mdp.air_time_reward,
-        weight=5.0,  # default = 5.0
-        params={
-            "mode_time": 0.15,  # default = 0.3
-            "velocity_threshold": 0.5,
-            "asset_cfg": SceneEntityCfg("robot"),
-            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot"),
-        },
-    )
-    # base_angular_velocity = RewardTermCfg(
-    #     func=spot_mdp.base_angular_velocity_reward,
-    #     weight=5.0, # default = 5.0
-    #     params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
+    # air_time = RewardTermCfg(
+    #     func=spot_mdp.air_time_reward,
+    #     weight=2.5,  # default = 5.0
+    #     params={
+    #         "mode_time": 0.5,  # default = 0.3
+    #         "velocity_threshold": 0.5,
+    #         "asset_cfg": SceneEntityCfg("robot"),
+    #         "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot"),
+    #     },
     # )
+    base_angular_velocity = RewardTermCfg(
+        func=spot_mdp.base_angular_velocity_reward,
+        weight=5.0, # default = 5.0
+        params={"std": 2.0, "asset_cfg": SceneEntityCfg("robot")},
+    )
     base_linear_velocity = RewardTermCfg(
         func=spot_mdp.base_linear_velocity_reward,
         weight=5.0, # default = 5.0
@@ -220,7 +228,7 @@ class SpotRewardsCfg:
     #     params={
     #         "std": 0.05,
     #         "tanh_mult": 2.0,
-    #         "target_height": 0.05,   # default = 0.1
+    #         "target_height": 0.09,   # default = 0.1
     #         "asset_cfg": SceneEntityCfg("robot", body_names=".*foot"),
     #     },
     # )
@@ -237,22 +245,54 @@ class SpotRewardsCfg:
     #     },
     # )
 
+    animation = RewardTermCfg(
+        func=spot_mdp.AnimationReward,
+        weight=10.0,
+        params={
+            "std": 1.0, 
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "velocity_threshold": 0.1,
+            "file_path":"/home/csl/isaaclab-4.5/panda_rl/source/ext_template/ext_template/tasks/locomotion/velocity/config/panda/mdp/joint_angles_20250228_140351_resampled_reordered.txt"
+        },
+    )
+
+    animation_vel = RewardTermCfg(
+        func=spot_mdp.AnimationVelocityReward,
+        weight=10.0,
+        params={
+            "std": 10.0,
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "velocity_threshold": 0.1,
+            "file_path":"/home/csl/isaaclab-4.5/panda_rl/source/ext_template/ext_template/tasks/locomotion/velocity/config/panda/mdp/joint_angles_20250228_140351_joint_velocities.txt"
+        },
+    )
+
+    foot_end_point = RewardTermCfg(
+        func=spot_mdp.FootPositionReward,
+        weight=10.0,
+        params={
+            "std": 0.5,
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*foot"),
+            "file_path":"/home/csl/isaaclab-4.5/panda_rl/source/ext_template/ext_template/tasks/locomotion/velocity/config/panda/mdp/joint_angles_20250228_140351_resampled_reordered_foot_endpoints.txt"
+        },
+    )
+
     # -- penalties
-    action_smoothness = RewardTermCfg(func=spot_mdp.action_smoothness_penalty, weight=-1.0)
-    # air_time_variance = RewardTermCfg(
-    #     func=spot_mdp.air_time_variance_penalty,
-    #     weight=-1.0,    # default = -1.0
-    #     params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot")},
-    # )
+    action_smoothness = RewardTermCfg(func=spot_mdp.action_smoothness_penalty, weight=-1.0) # defalt = -1.0
+    air_time_variance = RewardTermCfg(
+        func=spot_mdp.air_time_variance_penalty,
+        weight=-5.0,    # default = -1.0
+        params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot")},
+    )
     base_motion = RewardTermCfg(
-        func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
+        func=spot_mdp.base_motion_penalty, weight=-1.0, params={"asset_cfg": SceneEntityCfg("robot")}
     )  # default = -2.0
     base_orientation = RewardTermCfg(
-        func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")} # default = -3.0
-    )
+        func=spot_mdp.base_orientation_penalty, weight=-1.0, params={"asset_cfg": SceneEntityCfg("robot")} # default = -3.0
+    ) # default = -3.0
     foot_slip = RewardTermCfg(
         func=spot_mdp.foot_slip_penalty,
-        weight=-0.5,
+        weight=-0.5, # default = -0.5
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names=".*foot"),
             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*foot"),
@@ -275,7 +315,7 @@ class SpotRewardsCfg:
     # )
     joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
-        weight=-5.0e-4, # default = -5.0e-4
+        weight=-5.0e-5, # default = -5.0e-4
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
     # joint_vel = RewardTermCfg(
@@ -283,18 +323,6 @@ class SpotRewardsCfg:
     #     weight=-1.0e-2, # default = -1.0e-2
     #     params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_joint", ".*_thigh_joint"])},
     # )
-
-    joint_animation = RewardTermCfg(
-        func=spot_mdp.AnimationReward,
-        weight=10.0,
-        params={
-            "std": 10.0,
-            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
-            "stand_still_scale": 5.0,
-            "velocity_threshold": 0.5,
-            "file_path":"/home/csl/isaaclab-4.5/panda_rl/source/ext_template/ext_template/tasks/locomotion/velocity/config/spot/mdp/joint_angles_20250220_171555_resampled.txt"
-        },
-    )
 
 
 @configclass
@@ -349,7 +377,7 @@ class SpotFlatEnvCfgV2(LocomotionVelocityRoughEnvCfg):
         self.scene.contact_forces.update_period = self.sim.dt
 
         # switch robot to Spot-d
-        self.scene.robot = PANDA_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = REDDOG_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # terrain
         # self.scene.terrain = TerrainImporterCfg(
@@ -404,3 +432,9 @@ class SpotFlatEnvCfgV2_PLAY(SpotFlatEnvCfgV2):
         # remove random pushing event
         # self.events.base_external_force_torque = None
         # self.events.push_robot = None
+
+        self.commands.base_velocity.ranges.lin_vel_x=(0.15, 0.15)
+        # self.events.reset_base.params["pose_range"] = {"x": (0.5, 0.5), "y": (0.0, 0.0), "yaw": (-0.785, -0.785)}
+        self.events.push_robot = None
+        
+        self.viewer.eye=(10.5, 10.5, 0.3)
