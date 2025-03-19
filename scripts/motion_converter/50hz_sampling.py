@@ -22,21 +22,21 @@ def resample_joint_poses(input_file, output_file, velocity_output_file=None, tar
     timestamps = data[:, -1]
     joint_data = data[:, :-1]
     
-    # Create cyclic data by repeating and blending
-    # Add last few frames to start and first few frames to end
-    joint_data_extended = np.vstack([
-        joint_data[-blend_range:],  # Add last frames to start
-        joint_data,
-        joint_data[:blend_range]    # Add first frames to end
-    ])
+    # # Create cyclic data by repeating and blending
+    # # Add last few frames to start and first few frames to end
+    # joint_data_extended = np.vstack([
+    #     joint_data[-blend_range:],  # Add last frames to start
+    #     joint_data,
+    #     joint_data[:blend_range]    # Add first frames to end
+    # ])
     
-    # Create extended timestamps
-    time_step = (timestamps[-1] - timestamps[0]) / (len(timestamps) - 1)
-    timestamps_extended = np.concatenate([
-        timestamps[0] - np.arange(blend_range, 0, -1) * time_step,
-        timestamps,
-        timestamps[-1] + np.arange(1, blend_range + 1) * time_step
-    ])
+    # # Create extended timestamps
+    # time_step = (timestamps[-1] - timestamps[0]) / (len(timestamps) - 1)
+    # timestamps_extended = np.concatenate([
+    #     timestamps[0] - np.arange(blend_range, 0, -1) * time_step,
+    #     timestamps,
+    #     timestamps[-1] + np.arange(1, blend_range + 1) * time_step
+    # ])
     
     # Calculate the duration and create new timestamps at target frequency
     duration = timestamps[-1] - timestamps[0]
@@ -44,7 +44,7 @@ def resample_joint_poses(input_file, output_file, velocity_output_file=None, tar
     new_timestamps = np.linspace(timestamps[0], timestamps[-1], num_samples)
     
     # Create interpolation function for each joint using linear interpolation
-    interpolators = [interp1d(timestamps_extended, joint_data_extended[:, i], kind='linear') 
+    interpolators = [interp1d(timestamps, joint_data[:, i], kind='linear') 
                     for i in range(joint_data.shape[1])]
     
     # Generate resampled data
@@ -104,17 +104,16 @@ def resample_joint_poses(input_file, output_file, velocity_output_file=None, tar
         dt = 1.0 / target_freq
         
         # Calculate velocities (rad/s) using central difference
-        # For first frame, use forward difference
         velocities = np.zeros_like(reordered_joints)
-        
-        # Forward difference for first frame
-        velocities[0] = (reordered_joints[1] - reordered_joints[0]) / dt
         
         # Central difference for middle frames
         velocities[1:-1] = (reordered_joints[2:] - reordered_joints[:-2]) / (2 * dt)
         
-        # Backward difference for last frame
-        velocities[-1] = (reordered_joints[-1] - reordered_joints[-2]) / dt
+        # For first frame, use last and second frames (cyclic boundary)
+        velocities[0] = (reordered_joints[1] - reordered_joints[-1]) / (2 * dt)
+        
+        # For last frame, use last-1 and first frames (cyclic boundary)
+        velocities[-1] = (reordered_joints[0] - reordered_joints[-2]) / (2 * dt)
         
         # Save velocities to file
         np.savetxt(velocity_output_file, velocities, fmt='%.6f', delimiter=' ')
@@ -124,7 +123,7 @@ def resample_joint_poses(input_file, output_file, velocity_output_file=None, tar
 
 # Example usage
 if __name__ == "__main__":
-    input_file = "scripts/motion_converter/joint_angles_20250228_140351.txt"
+    input_file = "scripts/motion_converter/data/joint_angles_20250228_140351.txt"
     output_file = input_file.replace('.txt', '_resampled_reordered.txt')
     velocity_output_file = input_file.replace('.txt', '_joint_velocities.txt')
     

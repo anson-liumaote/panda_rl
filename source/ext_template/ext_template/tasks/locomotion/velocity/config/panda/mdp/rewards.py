@@ -284,7 +284,7 @@ def joint_velocity_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) ->
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.linalg.norm((asset.data.joint_vel), dim=1)
 
-class AnimationReward(ManagerTermBase):
+class AnimationPositionReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.
     A class to read joint angles data from a text file and convert to PyTorch tensors.
     The data format is expected to be space-separated values with 12 joint angles per line.
@@ -428,9 +428,12 @@ class FootPositionReward(ManagerTermBase):
         # Store total number of frames
         self.total_frames = len(self.lines)
 
+        # Other initializations
+        self.endpoint_asset_x = []
+        self.endpoint_asset_z = []
+        self.endpoint_txt_x = []
+        self.endpoint_txt_z = []
         self.step = 0
-        self.endpoint_txt = []
-        self.endpoint_asset = []
         
     def __call__(
         self,
@@ -471,7 +474,7 @@ class FootPositionReward(ManagerTermBase):
             foot_position_local = quat_rotate_inverse(root_orientation, pos_diff_world)
 
             # Define which indices you want to extract (x and z)
-            indices = [0, 2]
+            indices = [0, 1, 2]
 
             # Extract those indices from both tensors
             target_pos_foot = target_positions[:, i*3:i*3+3][:, indices]  # Shape: [batch_size, 2]
@@ -483,20 +486,37 @@ class FootPositionReward(ManagerTermBase):
             # Add to total error
             total_error += foot_error
 
-            # if i==0 and self.step<502:
-            #     print('append data step', self.step)
-            #     self.endpoint_asset.append(foot_position_local[0, 2].cpu().item())
-            #     self.endpoint_txt.append(target_pos_foot[0, 2].cpu().item())
-            #     self.step += 1
-            #     if self.step > 500:
-            #         plt.figure(figsize=(10, 6))
-            #         plt.plot(self.endpoint_asset, label='Asset Endpoint')
-            #         plt.plot(self.endpoint_txt, label='Target Endpoint')
-            #         plt.xlabel('Steps')
-            #         plt.ylabel('Z Position')
-            #         plt.legend()
-            #         plt.savefig('endpoint_comparison.png')
-            #         plt.close()
+            if i==0 and self.step<502:
+                print('append data step', self.step)
+                # Store both x and z coordinates
+                self.endpoint_asset_x.append(foot_position_local_selected[0, 0].cpu().item())  # x-coordinate
+                self.endpoint_asset_z.append(foot_position_local_selected[0, 1].cpu().item())  # z-coordinate
+                self.endpoint_txt_x.append(target_pos_foot[0, 0].cpu().item())  # x-coordinate
+                self.endpoint_txt_z.append(target_pos_foot[0, 1].cpu().item())  # z-coordinate
+                self.step += 1
+                if self.step > 500:
+                    # Create a figure with two subplots
+                    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+                    
+                    # Plot X coordinates
+                    ax1.plot(self.endpoint_asset_x, label='Asset Endpoint (X)')
+                    ax1.plot(self.endpoint_txt_x, label='Target Endpoint (X)')
+                    ax1.set_xlabel('Steps')
+                    ax1.set_ylabel('X Position')
+                    ax1.legend()
+                    ax1.set_title('X Coordinate Comparison')
+                    
+                    # Plot Z coordinates
+                    ax2.plot(self.endpoint_asset_z, label='Asset Endpoint (Z)')
+                    ax2.plot(self.endpoint_txt_z, label='Target Endpoint (Z)')
+                    ax2.set_xlabel('Steps')
+                    ax2.set_ylabel('Z Position')
+                    ax2.legend()
+                    ax2.set_title('Z Coordinate Comparison')
+                    
+                    plt.tight_layout()
+                    plt.savefig('endpoint_comparison.png')
+                    plt.close()
         
         # Calculate reward using exponential of negative error
         reward = torch.exp(-total_error / std)

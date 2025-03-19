@@ -285,7 +285,7 @@ class CombinedQuadrupedAnimation:
 
 def main():
     # Set the file paths
-    joint_file = "scripts/motion_converter/joint_angles_20250228_140351_resampled_reordered.txt"
+    joint_file = "scripts/motion_converter/data/joint_angles_20250306_120153_resampled_reordered.txt"
     endpoint_file = joint_file.replace('.txt', '_foot_endpoints.txt')
     
     # Load joint data

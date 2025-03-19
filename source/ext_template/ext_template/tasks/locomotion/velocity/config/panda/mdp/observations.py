@@ -5,10 +5,10 @@ from isaaclab.assets import Articulation
 from isaaclab.managers import SceneEntityCfg
 
 # Use string literal for type annotations to avoid circular imports
-def motion_sequence_counter(env: Any, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")) -> torch.Tensor:
-    """Return the count of the motion sequence from 0 to 82 repeatedly.
+def motion_sequence_counter(env: Any, asset_cfg: SceneEntityCfg = SceneEntityCfg("robot"), max_count=None) -> torch.Tensor:
+    """Return the count of the motion sequence from 0 to max_count repeatedly.
     
-    This function returns a counter for each environment instance that cycles from 0 to 82.
+    This function returns a counter for each environment instance that cycles from 0 to max_count.
     The counter is stored in the environment object and incremented on each call.
     
     Args:
@@ -48,10 +48,7 @@ def motion_sequence_counter(env: Any, asset_cfg: SceneEntityCfg = SceneEntityCfg
     
     # Increment the counters
     counters += 1
-    
-    # Reset counters that exceed 82 back to 0
-    max_count = 82
-    context[counter_key] = torch.where(counters > max_count, 
+    context[counter_key] = torch.where(counters >= max_count, 
                                      torch.zeros_like(counters), 
                                      counters)
     

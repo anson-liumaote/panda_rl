@@ -26,6 +26,7 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Lo
 # Pre-defined configs
 ##
 from ext_template.assets.panda import REDDOG_CFG
+from ext_template.assets import ISAACLAB_ASSETS_DATA_DIR
 
 
 
@@ -106,7 +107,7 @@ class SpotObservationsCfg:
             func=mdp.joint_vel_rel, params={"asset_cfg": SceneEntityCfg("robot")}, noise=Unoise(n_min=-0.5, n_max=0.5)
         )
         actions = ObsTerm(func=mdp.last_action)
-        current_step = ObsTerm(func=spot_mdp.motion_sequence_counter, params={"asset_cfg": SceneEntityCfg("robot")})
+        current_step = ObsTerm(func=spot_mdp.motion_sequence_counter, params={"asset_cfg": SceneEntityCfg("robot"), "max_count":83})
 
         def __post_init__(self):
             self.enable_corruption = False
@@ -245,14 +246,14 @@ class SpotRewardsCfg:
     #     },
     # )
 
-    animation = RewardTermCfg(
-        func=spot_mdp.AnimationReward,
+    animation_pos = RewardTermCfg(
+        func=spot_mdp.AnimationPositionReward,
         weight=10.0,
         params={
             "std": 1.0, 
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "velocity_threshold": 0.1,
-            "file_path":"/home/csl/isaaclab-4.5/panda_rl/source/ext_template/ext_template/tasks/locomotion/velocity/config/panda/mdp/joint_angles_20250228_140351_resampled_reordered.txt"
+            "file_path":f"{ISAACLAB_ASSETS_DATA_DIR}/Animation/walk/joint_positions_20250228_140351.txt"
         },
     )
 
@@ -263,7 +264,7 @@ class SpotRewardsCfg:
             "std": 10.0,
             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
             "velocity_threshold": 0.1,
-            "file_path":"/home/csl/isaaclab-4.5/panda_rl/source/ext_template/ext_template/tasks/locomotion/velocity/config/panda/mdp/joint_angles_20250228_140351_joint_velocities.txt"
+            "file_path":f"{ISAACLAB_ASSETS_DATA_DIR}/Animation/walk/joint_velocities_20250228_140351.txt"
         },
     )
 
@@ -273,12 +274,12 @@ class SpotRewardsCfg:
         params={
             "std": 0.5,
             "asset_cfg": SceneEntityCfg("robot", body_names=".*foot"),
-            "file_path":"/home/csl/isaaclab-4.5/panda_rl/source/ext_template/ext_template/tasks/locomotion/velocity/config/panda/mdp/joint_angles_20250228_140351_resampled_reordered_foot_endpoints.txt"
+            "file_path":f"{ISAACLAB_ASSETS_DATA_DIR}/Animation/walk/foot_endpoints_20250228_140351.txt"
         },
     )
 
     # -- penalties
-    action_smoothness = RewardTermCfg(func=spot_mdp.action_smoothness_penalty, weight=-1.0) # defalt = -1.0
+    action_smoothness = RewardTermCfg(func=spot_mdp.action_smoothness_penalty, weight=-2.0) # defalt = -1.0
     air_time_variance = RewardTermCfg(
         func=spot_mdp.air_time_variance_penalty,
         weight=-5.0,    # default = -1.0
@@ -302,7 +303,7 @@ class SpotRewardsCfg:
     joint_acc = RewardTermCfg(
         func=spot_mdp.joint_acceleration_penalty,
         weight=-1.0e-5,  # default = -1.0e-4
-        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_joint", ".*_thigh_joint"])},
+        params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_joint", ".*_thigh_joint", ".*_calf_joint"])},
     )
     # joint_pos = RewardTermCfg(
     #     func=spot_mdp.joint_position_penalty,
@@ -315,7 +316,7 @@ class SpotRewardsCfg:
     # )
     joint_torques = RewardTermCfg(
         func=spot_mdp.joint_torques_penalty,
-        weight=-5.0e-5, # default = -5.0e-4
+        weight=-5.0e-4, # default = -5.0e-4
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
     )
     # joint_vel = RewardTermCfg(
