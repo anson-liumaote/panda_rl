@@ -1,5 +1,3 @@
-# README
-
 # Motion Imitation Using Reinforcement Learning and Animation Data
 
 [![IsaacSim](https://img.shields.io/badge/IsaacSim-4.5.0-silver.svg)](https://docs.omniverse.nvidia.com/isaacsim/latest/overview.html)
