@@ -1,0 +1,11 @@
+# Foot contact patterns [FL FR RL RR] with consecutive frame counts
+# Format: ['pattern'] * count
+['1011'] * 4
+['1001'] * 36
+['1101'] * 1
+['0101'] * 26
+['0111'] * 18
+['0110'] * 38
+['1110'] * 1
+['1010'] * 31
+['1011'] * 1

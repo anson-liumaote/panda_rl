@@ -123,7 +123,7 @@ def resample_joint_poses(input_file, output_file, velocity_output_file=None, tar
 
 # Example usage
 if __name__ == "__main__":
-    input_file = "scripts/motion_converter/data/joint_angles_20250228_140351.txt"
+    input_file = "scripts/motion_converter/data/joint_angles_20250327_180705.txt"
     output_file = input_file.replace('.txt', '_resampled_reordered.txt')
     velocity_output_file = input_file.replace('.txt', '_joint_velocities.txt')
     

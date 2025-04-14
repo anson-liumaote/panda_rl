@@ -1,0 +1,6 @@
+numpy
+aligator==0.9.0
+pinocchio==3.3.0
+matplotlib
+h5py
+ipython
