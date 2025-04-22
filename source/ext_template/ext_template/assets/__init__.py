@@ -27,3 +27,4 @@ __version__ = ISAACLAB_ASSETS_METADATA["package"]["version"]
 ##
 
 from .panda import *
+from .unitree import *

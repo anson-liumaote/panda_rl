@@ -13,7 +13,7 @@ class SpotFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
     max_iterations = 20000
     save_interval = 50
-    experiment_name = "panda_flat"
+    experiment_name = "go2_flat"
     empirical_normalization = False
     store_code_state = False
     policy = RslRlPpoActorCriticCfg(
@@ -26,7 +26,7 @@ class SpotFlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
         value_loss_coef=0.5,
         use_clipped_value_loss=True,
         clip_param=0.2,
-        entropy_coef=0.0025,    # 0.0025
+        entropy_coef=0.0025,
         num_learning_epochs=5,
         num_mini_batches=4,
         learning_rate=1.0e-3,

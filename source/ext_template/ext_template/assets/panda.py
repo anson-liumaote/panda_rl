@@ -16,7 +16,7 @@ from ext_template.assets import ISAACLAB_ASSETS_DATA_DIR
 
 REDDOG_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/Panda/reddog_20250221/reddog_20250221/urdf/reddog_20250221/reddog_20250221.usd",
+        usd_path=f"{ISAACLAB_ASSETS_DATA_DIR}/Robots/Panda/reddog_20250221/reddog_20250221/urdf/reddog_20250221/reddog_20250221_new.usd",
         activate_contact_sensors=True,
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
@@ -34,8 +34,8 @@ REDDOG_CFG = ArticulationCfg(
     init_state=ArticulationCfg.InitialStateCfg(
         pos=(0.0, 0.0, 0.2),
         joint_pos={
-            ".*L_hip_joint": 0.1, 
-            ".*R_hip_joint": -0.1,
+            ".*L_hip_joint": 0.0, 
+            ".*R_hip_joint": 0.0,
             "F[LR]_thigh_joint": 0.785,
             "F[LR]_calf_joint": -1.57,
             "R[LR]_thigh_joint": -0.785,
@@ -43,31 +43,30 @@ REDDOG_CFG = ArticulationCfg(
         },
         joint_vel={".*": 0.0},
     ),
-    # actuators={
-    #     "joint_actuator": DCMotorCfg(
-    #         joint_names_expr=[".*"],
-    #         effort_limit=3.0,
-    #         saturation_effort=7.0,
-    #         velocity_limit=12.5,
-    #         stiffness=8.0,
-    #         friction=0.0,
-    #         damping=0.1,
-    #     ),
-    # },
-    soft_joint_pos_limit_factor=0.9,
     actuators={
-        "joint_actuator": DelayedPDActuatorCfg(
+        "joint_actuator": DCMotorCfg(
             joint_names_expr=[".*"],
             effort_limit=3.0,
-            # saturation_effort=7.0,
+            saturation_effort=7.0,
             velocity_limit=12.5,
             stiffness=15.0,
             damping=0.4,
             friction=0.0,
-            min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
-            max_delay=4,  # physics time steps (max: 2.0*4=8.0ms)
         ),
     },
+    soft_joint_pos_limit_factor=0.9,
+    # actuators={
+    #     "joint_actuator": DelayedPDActuatorCfg(
+    #         joint_names_expr=[".*"],
+    #         effort_limit=3.0,
+    #         velocity_limit=12.5,
+    #         stiffness=8.0,
+    #         damping=0.1,
+    #         friction=0.0,
+    #         min_delay=0,  # physics time steps (min: 2.0*0=0.0ms)
+    #         max_delay=4,  # physics time steps (max: 2.0*4=8.0ms)
+    #     ),
+    # },
 )
 
 # PANDA_CFG = ArticulationCfg(

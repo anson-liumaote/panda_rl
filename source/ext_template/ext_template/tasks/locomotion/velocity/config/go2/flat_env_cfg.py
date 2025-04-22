@@ -23,7 +23,7 @@ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import Lo
 ##
 # Pre-defined configs
 ##
-from ext_template.assets.panda import REDDOG_CFG
+from ext_template.assets.unitree import UNITREE_GO2_CFG
 
 
 COBBLESTONE_ROAD_CFG = terrain_gen.TerrainGeneratorCfg(
@@ -64,7 +64,7 @@ class SpotCommandsCfg:
         heading_command=False,
         debug_vis=True,
         ranges=mdp.UniformVelocityCommandCfg.Ranges(
-            lin_vel_x=(-0.5, 0.5), lin_vel_y=(-0.5, 0.5), ang_vel_z=(-1.0, 1.0)
+            lin_vel_x=(-1.5, 1.5), lin_vel_y=(-1.0, 1.0), ang_vel_z=(-1.57, 1.57)
         ),
     )
 
@@ -128,7 +128,7 @@ class SpotEventCfg:
         mode="startup",
         params={
             "asset_cfg": SceneEntityCfg("robot", body_names="base"),
-            "mass_distribution_params": (-0.3, 0.5),
+            "mass_distribution_params": (-1.0, 1.0),
             "operation": "add",
         },
     )
@@ -151,18 +151,12 @@ class SpotEventCfg:
             "asset_cfg": SceneEntityCfg("robot"),
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},
             "velocity_range": {
-                # "x": (-1.5, 1.5),
-                # "y": (-1.0, 1.0),
-                # "z": (-0.5, 0.5),
-                # "roll": (-0.7, 0.7),
-                # "pitch": (-0.7, 0.7),
-                # "yaw": (-1.0, 1.0),
-                "x": (0.0, 0.0),
-                "y": (0.0, 0.0),
-                "z": (0.0, 0.0),
-                "roll": (0.0, 0.0),
-                "pitch": (0.0, 0.0),
-                "yaw": (0.0, 0.0),
+                "x": (-0.75, 0.75),
+                "y": (-0.5, 0.5),
+                "z": (-0.5, 0.5),
+                "roll": (-0.7, 0.7),
+                "pitch": (-0.7, 0.7),
+                "yaw": (-1.0, 1.0),
             },
         },
     )
@@ -172,7 +166,7 @@ class SpotEventCfg:
         mode="reset",
         params={
             "position_range": (-0.2, 0.2),
-            "velocity_range": (0.0, 0.0),  # default = (-2.5, 2.5)
+            "velocity_range": (-2.5, -2.5),  # default = (-2.5, 2.5)
             "asset_cfg": SceneEntityCfg("robot"),
         },
     )
@@ -258,7 +252,7 @@ class SpotRewardsCfg:
     )
     joint_acc = RewardTermCfg(
         func=spot_mdp.joint_acceleration_penalty,
-        weight=-1.0e-5,  # default = -1.0e-4
+        weight=-1.0e-4,  # default = -1.0e-4
         params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*_hip_joint", ".*_thigh_joint"])},
     )
     joint_pos = RewardTermCfg(
@@ -334,7 +328,7 @@ class SpotFlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.scene.contact_forces.update_period = self.sim.dt
 
         # switch robot to Spot-d
-        self.scene.robot = REDDOG_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = UNITREE_GO2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
 
         # terrain
         self.scene.terrain = TerrainImporterCfg(

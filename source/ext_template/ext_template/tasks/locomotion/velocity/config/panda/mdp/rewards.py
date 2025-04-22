@@ -284,19 +284,138 @@ def joint_velocity_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg) ->
     asset: Articulation = env.scene[asset_cfg.name]
     return torch.linalg.norm((asset.data.joint_vel), dim=1)
 
+def base_height_penalty(env: ManagerBasedRLEnv, asset_cfg: SceneEntityCfg, target_height: float = 0.2) -> torch.Tensor:
+    """Penalize deviation from target base height"""
+    # Extract the asset to access its properties
+    asset: RigidObject = env.scene[asset_cfg.name]
+    
+    # Penalty on deviation from target height
+    # asset.data.root_pos_w[:, 2] gives the z-coordinate of the root position in world frame
+    height_penalty = torch.square(asset.data.root_pos_w[:, 2] - target_height)
+    
+    return height_penalty
+
+# class AnimationPositionReward(ManagerTermBase):
+#     """Gait enforcing reward term for quadrupeds.
+#     A class to read joint angles data from a text file and convert to PyTorch tensors.
+#     The data format is expected to be space-separated values with 12 joint angles per line.
+#     When reaching the end of file, it automatically loops back to the beginning.
+#     Each pose is extended to 4096 identical instances.
+#     """
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         """Initialize the term.
+#         Args:
+#             cfg: The configuration of the reward.
+#             env: The RL environment instance.
+#             file_path (str): Path to the joint angles text file
+#         """
+#         super().__init__(cfg, env)
+#         self.std: float = cfg.params["std"]
+#         self.velocity_threshold: float = cfg.params["velocity_threshold"]
+#         self.file_path: str = cfg.params["file_path"]
+#         self.asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
+        
+#         self.current_line = 0
+        
+#         # Store the device from the asset for later use
+#         # self.device = self.asset.data.joint_pos.device
+        
+#         # Read all lines at initialization
+#         with open(self.file_path, 'r') as f:
+#             self.lines = f.readlines()
+        
+#         # Store total number of frames
+#         self.total_frames = len(self.lines)
+        
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         velocity_threshold: float,
+#         asset_cfg: SceneEntityCfg,
+#         file_path: str,
+#         std: float
+#     ) -> torch.Tensor:
+#         """Penalize joint position error from default on the articulation."""
+#         # extract the used quantities (to enable type-hinting)
+#         asset: Articulation = env.scene[asset_cfg.name]
+#         cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
+#         body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, :2], dim=1)
+#         # Get the animation joint positions and ensure they're on the same device
+#         animation_joint_pos = self.__read_next_pose__(device=asset.data.joint_pos.device, NUM_INSTANCES=asset.data.joint_pos.shape[0], NUM_JOINTS=asset.data.joint_pos.shape[1])
+        
+#         # Only consider error in joint indices 0, 4, and 8
+#         # joint_indices = [0, 4, 8]
+        
+#         # Calculate squared error only for the specified joints
+#         error = torch.zeros_like(asset.data.joint_pos)
+#         # error[:, joint_indices] = torch.square(asset.data.joint_pos[:, joint_indices] - animation_joint_pos[:, joint_indices])
+#         error = torch.square(asset.data.joint_pos - animation_joint_pos)
+#         # Sum error only across the specified joints
+#         reward = torch.exp(-torch.sum(error, dim=1) / std)
+        
+#         return torch.where(torch.logical_or(cmd > 0.0, cmd < 0.3), reward, 0.0)
+#         # return reward
+    
+#     def __read_next_pose__(self, device=None, NUM_INSTANCES=None, NUM_JOINTS=None):
+#         """
+#         Read the next pose from the file and return as a PyTorch tensor.
+#         When reaching the end of file, loops back to the beginning.
+#         Each pose is repeated for NUM_INSTANCES times.
+        
+#         Args:
+#             device: The device to place the tensor on (default: None, uses self.device)
+            
+#         Returns:
+#             torch.Tensor: Tensor of shape (NUM_INSTANCES, NUM_JOINTS) containing joint angles
+#         """
+#         # If no device specified, use the stored device
+#         # if device is None:
+#         #     device = self.device
+            
+#         # If we reach the end, loop back to beginning
+#         if self.current_line >= self.total_frames:
+#             self.current_line = 0
+        
+#         # print(self.current_line)
+
+#         # Read the current line and split into values
+#         line = self.lines[self.current_line]
+#         values = line.strip().split()
+        
+#         # Convert to float and create tensor
+#         joint_angles = [float(x) for x in values]
+#         single_pose_tensor = torch.tensor(joint_angles, device=device).reshape(1, NUM_JOINTS)
+        
+#         # Repeat the pose NUM_INSTANCES times
+#         # pose_tensor = single_pose_tensor.repeat(NUM_INSTANCES, 1)
+        
+#         # Increment line counter
+#         self.current_line += 1
+
+#         if NUM_INSTANCES > 1:
+#             # For operations that need exact dimensions, we can expand (doesn't allocate new memory)
+#             return single_pose_tensor.expand(NUM_INSTANCES, NUM_JOINTS)
+#         else:
+#             return single_pose_tensor
+#         # return pose_tensor
+
+
 class AnimationPositionReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.
+    
     A class to read joint angles data from a text file and convert to PyTorch tensors.
     The data format is expected to be space-separated values with 12 joint angles per line.
     When reaching the end of file, it automatically loops back to the beginning.
-    Each pose is extended to 4096 identical instances.
+    Each pose is extended to match the number of environment instances.
+    
+    The class now syncs with motion_sequence_counter to determine which line to read for each environment.
     """
     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
         """Initialize the term.
+        
         Args:
             cfg: The configuration of the reward.
             env: The RL environment instance.
-            file_path (str): Path to the joint angles text file
         """
         super().__init__(cfg, env)
         self.std: float = cfg.params["std"]
@@ -304,17 +423,30 @@ class AnimationPositionReward(ManagerTermBase):
         self.file_path: str = cfg.params["file_path"]
         self.asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
         
-        self.current_line = 0
-        
-        # Store the device from the asset for later use
-        # self.device = self.asset.data.joint_pos.device
-        
-        # Read all lines at initialization
+        # Read all joint angles at initialization and convert to tensor immediately
         with open(self.file_path, 'r') as f:
-            self.lines = f.readlines()
+            lines = f.readlines()
         
         # Store total number of frames
-        self.total_frames = len(self.lines)
+        self.total_frames = len(lines)
+        
+        # Convert all lines to a single tensor of shape [total_frames, num_joints]
+        # This is much faster than parsing each line every time
+        self.joint_poses = []
+        for line in lines:
+            values = line.strip().split()
+            joint_angles = [float(x) for x in values]
+            self.joint_poses.append(joint_angles)
+        
+        # Convert list to tensor, will be moved to correct device during first call
+        self.joint_poses_tensor = torch.tensor(self.joint_poses)
+        
+        # Track the device using a property instead of direct assignment
+        self._current_device = None
+        # Cache for the last known number of environments
+        self.last_num_envs = None
+        
+        print(f"AnimationPositionReward initialized with {self.total_frames} frames from {self.file_path}")
         
     def __call__(
         self,
@@ -329,73 +461,257 @@ class AnimationPositionReward(ManagerTermBase):
         asset: Articulation = env.scene[asset_cfg.name]
         cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
         body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, :2], dim=1)
-        # Get the animation joint positions and ensure they're on the same device
-        animation_joint_pos = self.__read_next_pose__(device=asset.data.joint_pos.device, NUM_INSTANCES=asset.data.joint_pos.shape[0], NUM_JOINTS=asset.data.joint_pos.shape[1])
         
-        # Only consider error in joint indices 0, 4, and 8
-        # joint_indices = [0, 4, 8]
+        # Move tensor to correct device if needed
+        current_device = asset.data.joint_pos.device
+        if self._current_device != current_device:
+            self._current_device = current_device
+            self.joint_poses_tensor = self.joint_poses_tensor.to(current_device)
         
-        # Calculate squared error only for the specified joints
-        error = torch.zeros_like(asset.data.joint_pos)
-        # error[:, joint_indices] = torch.square(asset.data.joint_pos[:, joint_indices] - animation_joint_pos[:, joint_indices])
+        # Get the animation joint positions for each environment based on motion sequence context
+        animation_joint_pos = self.__get_env_poses__(
+            env=env,
+            NUM_ENVS=asset.data.joint_pos.shape[0], 
+            NUM_JOINTS=asset.data.joint_pos.shape[1]
+        )
+        
+        # Calculate squared error for all joints
         error = torch.square(asset.data.joint_pos - animation_joint_pos)
-        # Sum error only across the specified joints
-        reward = torch.exp(-torch.sum(error, dim=1) / std)
         
-        return torch.where(torch.logical_or(cmd > 0.0, cmd < 0.3), reward, 0.0)
-        # return reward
+        # Calculate reward using negative exponential of error
+        reward = torch.exp(-torch.sum(error, dim=1) / std)
+
+        # reward = torch.sum(error, dim=1)
+        
+        # Apply velocity threshold if needed
+        return torch.where(torch.logical_or(cmd > 0.0, body_vel < velocity_threshold), reward, torch.zeros_like(reward))
     
-    def __read_next_pose__(self, device=None, NUM_INSTANCES=None, NUM_JOINTS=None):
+    def __get_env_poses__(self, env, NUM_ENVS=None, NUM_JOINTS=None):
         """
-        Read the next pose from the file and return as a PyTorch tensor.
-        When reaching the end of file, loops back to the beginning.
-        Each pose is repeated for NUM_INSTANCES times.
+        Get poses for each environment based on the motion_sequence_context.
+        Uses pre-loaded tensor data for efficiency.
         
         Args:
-            device: The device to place the tensor on (default: None, uses self.device)
+            env: The environment instance
+            NUM_ENVS: Number of environments
+            NUM_JOINTS: Number of joints in each pose
             
         Returns:
-            torch.Tensor: Tensor of shape (NUM_INSTANCES, NUM_JOINTS) containing joint angles
+            torch.Tensor: Tensor of shape (NUM_ENVS, NUM_JOINTS) containing joint angles
         """
-        # If no device specified, use the stored device
-        # if device is None:
-        #     device = self.device
+        # Fast path: check if motion sequence context exists
+        # We only need to check once if the context doesn't exist
+        if not hasattr(env, "_motion_sequence_context"):
+            # Use frame 0 for all environments if context doesn't exist
+            return self.joint_poses_tensor[0].repeat(NUM_ENVS, 1)
+        
+        # Get raw counter values from motion sequence context
+        context = env._motion_sequence_context
+        raw_counter_key = "raw_motion_sequence_counter"
+        
+        if raw_counter_key not in context:
+            # Use frame 0 for all environments if counters don't exist
+            return self.joint_poses_tensor[0].repeat(NUM_ENVS, 1)
+        
+        # Get the current counters for all environments
+        raw_counters = context[raw_counter_key]
+
+        # print(f"Raw counters for first 3 envs: {raw_counters[:3, 0].cpu().tolist()}")
+        
+        # Clamp indices to valid range
+        indices = raw_counters[:, 0].long().clamp(0, self.total_frames - 1)
+        
+        # Use advanced indexing to get all poses at once - much faster!
+        # This selects the appropriate pose for each environment in a single operation
+        return self.joint_poses_tensor[indices]
+
+# class FootPositionReward(ManagerTermBase):
+#     """Reward term for matching foot positions of quadrupeds.
+#     A class to read target foot positions from a text file and calculate rewards
+#     based on how closely the current foot positions match the targets.
+#     The data format is expected to be space-separated values with 12 values per line 
+#     (3 coordinates x 4 feet: FL_foot, FR_foot, RL_foot, RR_foot).
+#     When reaching the end of file, it automatically loops back to the beginning.
+#     """
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         """Initialize the term.
+#         Args:
+#             cfg: The configuration of the reward.
+#             env: The RL environment instance.
+#         """
+#         super().__init__(cfg, env)
+#         self.std: float = cfg.params["std"]
+#         self.file_path: str = cfg.params["file_path"]
+#         self.asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
+        
+#         # Define the foot link names
+#         self.foot_link_names = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
+        
+#         # Validate that all foot links exist in the asset
+#         for foot_name in self.foot_link_names:
+#             if foot_name not in self.asset.body_names:
+#                 raise ValueError(f"Foot link '{foot_name}' not found in asset body names")
+        
+#         # Get foot link indices
+#         self.foot_indices = [self.asset.data.body_names.index(name) for name in self.foot_link_names]
+        
+#         self.current_line = 0
+        
+#         # Read all lines at initialization
+#         with open(self.file_path, 'r') as f:
+#             self.lines = f.readlines()
+        
+#         # Store total number of frames
+#         self.total_frames = len(self.lines)
+
+#         # Other initializations
+#         self.endpoint_asset_x = []
+#         self.endpoint_asset_z = []
+#         self.endpoint_txt_x = []
+#         self.endpoint_txt_z = []
+#         self.step = 0
+        
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         asset_cfg: SceneEntityCfg,
+#         file_path: str,
+#         std: float
+#     ) -> torch.Tensor:
+#         """Calculate reward based on matching target foot positions."""
+#         # Extract the asset
+#         asset: Articulation = env.scene[asset_cfg.name]
+#         cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
+        
+#         # Read target foot positions from file
+#         target_positions = self.__read_next_pose__(
+#             device=asset.data.body_link_pos_w.device, 
+#             NUM_INSTANCES=asset.data.body_link_pos_w.shape[0]
+#         )
+        
+#         # Get root positions and orientations
+#         root_position = asset.data.root_link_pos_w  # Shape: (num_instances, 3)
+#         root_orientation = asset.data.root_link_quat_w  # Shape: (num_instances, 4) in (w,x,y,z) format
+        
+#         # Initialize total error tensor
+#         total_error = torch.zeros(asset.data.body_link_pos_w.shape[0], device=asset.data.body_link_pos_w.device)
+        
+#         # Calculate errors for each foot
+#         for i, foot_index in enumerate(self.foot_indices):
+#             # if i!=0:
+#             #     continue
+#             # Get global foot position
+#             foot_position_global = asset.data.body_link_pos_w[:, foot_index, :]  # Shape: (num_instances, 3)
             
-        # If we reach the end, loop back to beginning
-        if self.current_line >= self.total_frames:
-            self.current_line = 0
-        
-        # print(self.current_line)
+#             # Calculate position difference in world frame
+#             pos_diff_world = foot_position_global - root_position
+            
+#             # Rotate the position difference to root's local frame
+#             foot_position_local = quat_rotate_inverse(root_orientation, pos_diff_world)
 
-        # Read the current line and split into values
-        line = self.lines[self.current_line]
-        values = line.strip().split()
-        
-        # Convert to float and create tensor
-        joint_angles = [float(x) for x in values]
-        single_pose_tensor = torch.tensor(joint_angles, device=device).reshape(1, NUM_JOINTS)
-        
-        # Repeat the pose NUM_INSTANCES times
-        # pose_tensor = single_pose_tensor.repeat(NUM_INSTANCES, 1)
-        
-        # Increment line counter
-        self.current_line += 1
-        
+#             # Define which indices you want to extract (x and z)
+#             indices = [0, 1, 2]
 
-        if NUM_INSTANCES > 1:
-            # For operations that need exact dimensions, we can expand (doesn't allocate new memory)
-            return single_pose_tensor.expand(NUM_INSTANCES, NUM_JOINTS)
-        else:
-            return single_pose_tensor
-        # return pose_tensor
+#             # Extract those indices from both tensors
+#             target_pos_foot = target_positions[:, i*3:i*3+3][:, indices]  # Shape: [batch_size, 2]
+#             foot_position_local_selected = foot_position_local[:, indices]  # Shape: [batch_size, 2]
+
+#             # Calculate squared error and sum across the component dimension
+#             foot_error = torch.sum(torch.square(foot_position_local_selected - target_pos_foot), dim=1)
+            
+#             # Add to total error
+#             total_error += foot_error
+
+#             # if i==0 and self.step<502:
+#             #     print('append data step', self.step)
+#             #     # Store both x and z coordinates
+#             #     self.endpoint_asset_x.append(foot_position_local_selected[0, 0].cpu().item())  # x-coordinate
+#             #     self.endpoint_asset_z.append(foot_position_local_selected[0, 1].cpu().item())  # z-coordinate
+#             #     self.endpoint_txt_x.append(target_pos_foot[0, 0].cpu().item())  # x-coordinate
+#             #     self.endpoint_txt_z.append(target_pos_foot[0, 1].cpu().item())  # z-coordinate
+#             #     self.step += 1
+#             #     if self.step > 500:
+#             #         # Create a figure with two subplots
+#             #         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
+                    
+#             #         # Plot X coordinates
+#             #         ax1.plot(self.endpoint_asset_x, label='Asset Endpoint (X)')
+#             #         ax1.plot(self.endpoint_txt_x, label='Target Endpoint (X)')
+#             #         ax1.set_xlabel('Steps')
+#             #         ax1.set_ylabel('X Position')
+#             #         ax1.legend()
+#             #         ax1.set_title('X Coordinate Comparison')
+                    
+#             #         # Plot Z coordinates
+#             #         ax2.plot(self.endpoint_asset_z, label='Asset Endpoint (Z)')
+#             #         ax2.plot(self.endpoint_txt_z, label='Target Endpoint (Z)')
+#             #         ax2.set_xlabel('Steps')
+#             #         ax2.set_ylabel('Z Position')
+#             #         ax2.legend()
+#             #         ax2.set_title('Z Coordinate Comparison')
+                    
+#             #         plt.tight_layout()
+#             #         plt.savefig('endpoint_comparison.png')
+#             #         plt.close()
+        
+#         # Calculate reward using exponential of negative error
+#         reward = torch.exp(-total_error / std)
+        
+#         # Return the reward directly
+#         return torch.where(torch.logical_or(cmd > 0.0, cmd < 0.3), reward, 0.0)
+#         # return reward
+    
+#     def __read_next_pose__(self, device=None, NUM_INSTANCES=None):
+#         """
+#         Read the next target foot positions from the file and return as a PyTorch tensor.
+#         When reaching the end of file, loops back to the beginning.
+        
+#         Args:
+#             device: The device to place the tensor on
+#             NUM_INSTANCES: Number of instances to replicate the pose for
+            
+#         Returns:
+#             torch.Tensor: Tensor of shape (NUM_INSTANCES, 12) containing target foot positions
+#                           (3 coordinates x 4 feet)
+#         """
+#         # If we reach the end, loop back to beginning
+#         if self.current_line >= self.total_frames:
+#             self.current_line = 0
+            
+#         # Read the current line and split into values
+#         line = self.lines[self.current_line]
+#         values = line.strip().split()
+        
+#         # Convert to float and create tensor
+#         # Expecting 12 values (3 coordinates x 4 feet)
+#         if len(values) != 12:
+#             raise ValueError(f"Expected 12 values per line, but got {len(values)} in line {self.current_line+1}")
+            
+#         target_positions = [float(x) for x in values]
+#         single_pose_tensor = torch.tensor(target_positions, device=device).reshape(1, 12)
+        
+#         # Repeat the pose NUM_INSTANCES times
+#         # pose_tensor = single_pose_tensor.repeat(NUM_INSTANCES, 1)
+        
+#         # Increment line counter
+#         self.current_line += 1
+#         if NUM_INSTANCES > 1:
+#             # For operations that need exact dimensions, we can expand (doesn't allocate new memory)
+#             return single_pose_tensor.expand(NUM_INSTANCES, 12)
+#         else:
+#             return single_pose_tensor
+#         # return pose_tensor
+
 
 class FootPositionReward(ManagerTermBase):
     """Reward term for matching foot positions of quadrupeds.
+    
     A class to read target foot positions from a text file and calculate rewards
     based on how closely the current foot positions match the targets.
     The data format is expected to be space-separated values with 12 values per line 
     (3 coordinates x 4 feet: FL_foot, FR_foot, RL_foot, RR_foot).
-    When reaching the end of file, it automatically loops back to the beginning.
+    
+    The class now syncs with motion_sequence_counter to determine which line to read for each environment.
     """
     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
         """Initialize the term.
@@ -419,21 +735,32 @@ class FootPositionReward(ManagerTermBase):
         # Get foot link indices
         self.foot_indices = [self.asset.data.body_names.index(name) for name in self.foot_link_names]
         
-        self.current_line = 0
-        
-        # Read all lines at initialization
+        # Read all target positions at initialization and convert to tensor immediately
         with open(self.file_path, 'r') as f:
-            self.lines = f.readlines()
+            lines = f.readlines()
         
         # Store total number of frames
-        self.total_frames = len(self.lines)
-
-        # Other initializations
-        self.endpoint_asset_x = []
-        self.endpoint_asset_z = []
-        self.endpoint_txt_x = []
-        self.endpoint_txt_z = []
-        self.step = 0
+        self.total_frames = len(lines)
+        
+        # Convert all lines to a single tensor of shape [total_frames, 12]
+        # This is much faster than parsing each line every time
+        self.target_positions = []
+        for line in lines:
+            values = line.strip().split()
+            if len(values) != 12:
+                print(f"Warning: Expected 12 values but got {len(values)}. Using zeros.")
+                position_values = [0.0] * 12
+            else:
+                position_values = [float(x) for x in values]
+            self.target_positions.append(position_values)
+        
+        # Convert list to tensor, will be moved to correct device during first call
+        self.target_positions_tensor = torch.tensor(self.target_positions)
+        
+        # Track the device using a property
+        self._current_device = None
+        
+        print(f"FootPositionReward initialized with {self.total_frames} frames from {self.file_path}")
         
     def __call__(
         self,
@@ -447,10 +774,16 @@ class FootPositionReward(ManagerTermBase):
         asset: Articulation = env.scene[asset_cfg.name]
         cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
         
-        # Read target foot positions from file
-        target_positions = self.__read_next_pose__(
-            device=asset.data.body_link_pos_w.device, 
-            NUM_INSTANCES=asset.data.body_link_pos_w.shape[0]
+        # Move tensor to correct device if needed
+        current_device = asset.data.body_link_pos_w.device
+        if self._current_device != current_device:
+            self._current_device = current_device
+            self.target_positions_tensor = self.target_positions_tensor.to(current_device)
+        
+        # Get target foot positions based on motion sequence context
+        target_positions = self.__get_target_positions__(
+            env=env,
+            NUM_ENVS=asset.data.body_link_pos_w.shape[0]
         )
         
         # Get root positions and orientations
@@ -458,12 +791,10 @@ class FootPositionReward(ManagerTermBase):
         root_orientation = asset.data.root_link_quat_w  # Shape: (num_instances, 4) in (w,x,y,z) format
         
         # Initialize total error tensor
-        total_error = torch.zeros(asset.data.body_link_pos_w.shape[0], device=asset.data.body_link_pos_w.device)
+        total_error = torch.zeros(asset.data.body_link_pos_w.shape[0], device=current_device)
         
         # Calculate errors for each foot
         for i, foot_index in enumerate(self.foot_indices):
-            # if i!=0:
-            #     continue
             # Get global foot position
             foot_position_global = asset.data.body_link_pos_w[:, foot_index, :]  # Shape: (num_instances, 3)
             
@@ -473,112 +804,179 @@ class FootPositionReward(ManagerTermBase):
             # Rotate the position difference to root's local frame
             foot_position_local = quat_rotate_inverse(root_orientation, pos_diff_world)
 
-            # Define which indices you want to extract (x and z)
+            # Define which indices you want to extract (x, y, and z)
             indices = [0, 1, 2]
 
             # Extract those indices from both tensors
-            target_pos_foot = target_positions[:, i*3:i*3+3][:, indices]  # Shape: [batch_size, 2]
-            foot_position_local_selected = foot_position_local[:, indices]  # Shape: [batch_size, 2]
+            target_pos_foot = target_positions[:, i*3:i*3+3][:, indices]  # Shape: [batch_size, 3]
+            foot_position_local_selected = foot_position_local[:, indices]  # Shape: [batch_size, 3]
 
             # Calculate squared error and sum across the component dimension
             foot_error = torch.sum(torch.square(foot_position_local_selected - target_pos_foot), dim=1)
             
             # Add to total error
             total_error += foot_error
-
-            if i==0 and self.step<502:
-                print('append data step', self.step)
-                # Store both x and z coordinates
-                self.endpoint_asset_x.append(foot_position_local_selected[0, 0].cpu().item())  # x-coordinate
-                self.endpoint_asset_z.append(foot_position_local_selected[0, 1].cpu().item())  # z-coordinate
-                self.endpoint_txt_x.append(target_pos_foot[0, 0].cpu().item())  # x-coordinate
-                self.endpoint_txt_z.append(target_pos_foot[0, 1].cpu().item())  # z-coordinate
-                self.step += 1
-                if self.step > 500:
-                    # Create a figure with two subplots
-                    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 12))
-                    
-                    # Plot X coordinates
-                    ax1.plot(self.endpoint_asset_x, label='Asset Endpoint (X)')
-                    ax1.plot(self.endpoint_txt_x, label='Target Endpoint (X)')
-                    ax1.set_xlabel('Steps')
-                    ax1.set_ylabel('X Position')
-                    ax1.legend()
-                    ax1.set_title('X Coordinate Comparison')
-                    
-                    # Plot Z coordinates
-                    ax2.plot(self.endpoint_asset_z, label='Asset Endpoint (Z)')
-                    ax2.plot(self.endpoint_txt_z, label='Target Endpoint (Z)')
-                    ax2.set_xlabel('Steps')
-                    ax2.set_ylabel('Z Position')
-                    ax2.legend()
-                    ax2.set_title('Z Coordinate Comparison')
-                    
-                    plt.tight_layout()
-                    plt.savefig('endpoint_comparison.png')
-                    plt.close()
         
         # Calculate reward using exponential of negative error
         reward = torch.exp(-total_error / std)
+
+        # reward = total_error
         
-        # Return the reward directly
+        # Return the reward with velocity condition applied
         return torch.where(torch.logical_or(cmd > 0.0, cmd < 0.3), reward, 0.0)
-        # return reward
     
-    def __read_next_pose__(self, device=None, NUM_INSTANCES=None):
+    def __get_target_positions__(self, env, NUM_ENVS=None):
         """
-        Read the next target foot positions from the file and return as a PyTorch tensor.
-        When reaching the end of file, loops back to the beginning.
+        Get target positions for each environment based on the motion_sequence_context.
+        Uses pre-loaded tensor data for efficiency.
         
         Args:
-            device: The device to place the tensor on
-            NUM_INSTANCES: Number of instances to replicate the pose for
+            env: The environment instance
+            NUM_ENVS: Number of environments
             
         Returns:
-            torch.Tensor: Tensor of shape (NUM_INSTANCES, 12) containing target foot positions
-                          (3 coordinates x 4 feet)
+            torch.Tensor: Tensor of shape (NUM_ENVS, 12) containing target foot positions
         """
-        # If we reach the end, loop back to beginning
-        if self.current_line >= self.total_frames:
-            self.current_line = 0
+        # Fast path: check if motion sequence context exists
+        if not hasattr(env, "_motion_sequence_context"):
+            # Use frame 0 for all environments if context doesn't exist
+            return self.target_positions_tensor[0].repeat(NUM_ENVS, 1)
+        
+        # Get raw counter values from motion sequence context
+        context = env._motion_sequence_context
+        raw_counter_key = "raw_motion_sequence_counter"
+        
+        if raw_counter_key not in context:
+            # Use frame 0 for all environments if counters don't exist
+            return self.target_positions_tensor[0].repeat(NUM_ENVS, 1)
+        
+        # Get the current counters for all environments
+        raw_counters = context[raw_counter_key]
+        
+        # Clamp indices to valid range
+        indices = raw_counters[:, 0].long().clamp(0, self.total_frames - 1)
+        
+        # Use advanced indexing to get all target positions at once - much faster!
+        # This selects the appropriate position for each environment in a single operation
+        return self.target_positions_tensor[indices]
+
+# class AnimationVelocityReward(ManagerTermBase):
+#     """Gait enforcing reward term for quadrupeds.
+#     A class to read joint angles data from a text file and convert to PyTorch tensors.
+#     The data format is expected to be space-separated values with 12 joint angles per line.
+#     When reaching the end of file, it automatically loops back to the beginning.
+#     Each pose is extended to 4096 identical instances.
+#     """
+#     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+#         """Initialize the term.
+#         Args:
+#             cfg: The configuration of the reward.
+#             env: The RL environment instance.
+#             file_path (str): Path to the joint angles text file
+#         """
+#         super().__init__(cfg, env)
+#         self.std: float = cfg.params["std"]
+#         self.velocity_threshold: float = cfg.params["velocity_threshold"]
+#         self.file_path: str = cfg.params["file_path"]
+#         self.asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
+        
+#         self.current_line = 0
+        
+#         # Store the device from the asset for later use
+#         # self.device = self.asset.data.joint_pos.device
+        
+#         # Read all lines at initialization
+#         with open(self.file_path, 'r') as f:
+#             self.lines = f.readlines()
+        
+#         # Store total number of frames
+#         self.total_frames = len(self.lines)
+        
+#     def __call__(
+#         self,
+#         env: ManagerBasedRLEnv,
+#         velocity_threshold: float,
+#         asset_cfg: SceneEntityCfg,
+#         file_path: str,
+#         std: float
+#     ) -> torch.Tensor:
+#         """Penalize joint position error from default on the articulation."""
+#         # extract the used quantities (to enable type-hinting)
+#         asset: Articulation = env.scene[asset_cfg.name]
+#         cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
+#         body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, :2], dim=1)
+#         # Get the animation joint positions and ensure they're on the same device
+#         animation_joint_vel = self.__read_next_pose__(device=asset.data.joint_vel.device, NUM_INSTANCES=asset.data.joint_vel.shape[0], NUM_JOINTS=asset.data.joint_vel.shape[1])
+        
+#         # Only consider error in joint indices 0, 4, and 8
+#         # joint_indices = [0, 4, 8]
+        
+#         # Calculate squared error only for the specified joints
+#         error = torch.zeros_like(asset.data.joint_vel)
+#         # error[:, joint_indices] = torch.square(asset.data.joint_pos[:, joint_indices] - animation_joint_pos[:, joint_indices])
+#         error = torch.square(asset.data.joint_vel - animation_joint_vel)
+#         # Sum error only across the specified joints
+#         reward = torch.exp(-torch.sum(error, dim=1) / std)
+        
+#         return torch.where(torch.logical_or(cmd > 0.0, cmd < 0.3), reward, 0.0)
+#         # return reward
+    
+#     def __read_next_pose__(self, device=None, NUM_INSTANCES=None, NUM_JOINTS=None):
+#         """
+#         Read the next pose from the file and return as a PyTorch tensor.
+#         When reaching the end of file, loops back to the beginning.
+#         Each pose is repeated for NUM_INSTANCES times.
+        
+#         Args:
+#             device: The device to place the tensor on (default: None, uses self.device)
             
-        # Read the current line and split into values
-        line = self.lines[self.current_line]
-        values = line.strip().split()
-        
-        # Convert to float and create tensor
-        # Expecting 12 values (3 coordinates x 4 feet)
-        if len(values) != 12:
-            raise ValueError(f"Expected 12 values per line, but got {len(values)} in line {self.current_line+1}")
+#         Returns:
+#             torch.Tensor: Tensor of shape (NUM_INSTANCES, NUM_JOINTS) containing joint angles
+#         """
+#         # If no device specified, use the stored device
+#         # if device is None:
+#         #     device = self.device
             
-        target_positions = [float(x) for x in values]
-        single_pose_tensor = torch.tensor(target_positions, device=device).reshape(1, 12)
+#         # If we reach the end, loop back to beginning
+#         if self.current_line >= self.total_frames:
+#             self.current_line = 0
+            
+#         # Read the current line and split into values
+#         line = self.lines[self.current_line]
+#         values = line.strip().split()
         
-        # Repeat the pose NUM_INSTANCES times
-        # pose_tensor = single_pose_tensor.repeat(NUM_INSTANCES, 1)
+#         # Convert to float and create tensor
+#         joint_vels = [float(x) for x in values]
+#         single_pose_tensor = torch.tensor(joint_vels, device=device).reshape(1, NUM_JOINTS)
         
-        # Increment line counter
-        self.current_line += 1
-        if NUM_INSTANCES > 1:
-            # For operations that need exact dimensions, we can expand (doesn't allocate new memory)
-            return single_pose_tensor.expand(NUM_INSTANCES, 12)
-        else:
-            return single_pose_tensor
-        # return pose_tensor
+#         # Repeat the pose NUM_INSTANCES times
+#         # pose_tensor = single_pose_tensor.repeat(NUM_INSTANCES, 1)
+        
+#         # Increment line counter
+#         self.current_line += 1
+#         if NUM_INSTANCES > 1:
+#             # For operations that need exact dimensions, we can expand (doesn't allocate new memory)
+#             return single_pose_tensor.expand(NUM_INSTANCES, NUM_JOINTS)
+#         else:
+#             return single_pose_tensor
+#         # return pose_tensor
 
 class AnimationVelocityReward(ManagerTermBase):
     """Gait enforcing reward term for quadrupeds.
-    A class to read joint angles data from a text file and convert to PyTorch tensors.
-    The data format is expected to be space-separated values with 12 joint angles per line.
+    
+    A class to read joint velocity data from a text file and convert to PyTorch tensors.
+    The data format is expected to be space-separated values with joint velocities per line.
     When reaching the end of file, it automatically loops back to the beginning.
-    Each pose is extended to 4096 identical instances.
+    Each pose is extended to match the number of environment instances.
+    
+    The class now syncs with motion_sequence_counter to determine which line to read for each environment.
     """
     def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
         """Initialize the term.
         Args:
             cfg: The configuration of the reward.
             env: The RL environment instance.
-            file_path (str): Path to the joint angles text file
+            file_path (str): Path to the joint velocities text file
         """
         super().__init__(cfg, env)
         self.std: float = cfg.params["std"]
@@ -586,17 +984,41 @@ class AnimationVelocityReward(ManagerTermBase):
         self.file_path: str = cfg.params["file_path"]
         self.asset: Articulation = env.scene[cfg.params["asset_cfg"].name]
         
-        self.current_line = 0
-        
-        # Store the device from the asset for later use
-        # self.device = self.asset.data.joint_pos.device
-        
-        # Read all lines at initialization
+        # Read all joint velocities at initialization and convert to tensor immediately
         with open(self.file_path, 'r') as f:
-            self.lines = f.readlines()
+            lines = f.readlines()
         
         # Store total number of frames
-        self.total_frames = len(self.lines)
+        self.total_frames = len(lines)
+        
+        # Convert all lines to a single tensor of shape [total_frames, num_joints]
+        # This is much faster than parsing each line every time
+        self.joint_vels = []
+        num_joints = None
+        
+        for line in lines:
+            values = line.strip().split()
+            
+            # Set expected number of joints from first line
+            if num_joints is None:
+                num_joints = len(values)
+                
+            # Check if current line has expected number of values
+            if len(values) != num_joints:
+                print(f"Warning: Expected {num_joints} values but got {len(values)}. Using zeros.")
+                joint_velocities = [0.0] * num_joints
+            else:
+                joint_velocities = [float(x) for x in values]
+                
+            self.joint_vels.append(joint_velocities)
+        
+        # Convert list to tensor, will be moved to correct device during first call
+        self.joint_vels_tensor = torch.tensor(self.joint_vels)
+        
+        # Track the device using a property
+        self._current_device = None
+        
+        print(f"AnimationVelocityReward initialized with {self.total_frames} frames from {self.file_path}")
         
     def __call__(
         self,
@@ -606,64 +1028,202 @@ class AnimationVelocityReward(ManagerTermBase):
         file_path: str,
         std: float
     ) -> torch.Tensor:
-        """Penalize joint position error from default on the articulation."""
-        # extract the used quantities (to enable type-hinting)
+        """Penalize joint velocity error from the target animation."""
+        # Extract the used quantities (to enable type-hinting)
         asset: Articulation = env.scene[asset_cfg.name]
         cmd = torch.linalg.norm(env.command_manager.get_command("base_velocity"), dim=1)
         body_vel = torch.linalg.norm(asset.data.root_lin_vel_b[:, :2], dim=1)
-        # Get the animation joint positions and ensure they're on the same device
-        animation_joint_vel = self.__read_next_pose__(device=asset.data.joint_vel.device, NUM_INSTANCES=asset.data.joint_vel.shape[0], NUM_JOINTS=asset.data.joint_vel.shape[1])
         
-        # Only consider error in joint indices 0, 4, and 8
-        # joint_indices = [0, 4, 8]
+        # Move tensor to correct device if needed
+        current_device = asset.data.joint_vel.device
+        if self._current_device != current_device:
+            self._current_device = current_device
+            self.joint_vels_tensor = self.joint_vels_tensor.to(current_device)
         
-        # Calculate squared error only for the specified joints
-        error = torch.zeros_like(asset.data.joint_vel)
-        # error[:, joint_indices] = torch.square(asset.data.joint_pos[:, joint_indices] - animation_joint_pos[:, joint_indices])
+        # Get the animation joint velocities for each environment based on motion sequence context
+        animation_joint_vel = self.__get_joint_velocities__(
+            env=env,
+            NUM_ENVS=asset.data.joint_vel.shape[0], 
+            NUM_JOINTS=asset.data.joint_vel.shape[1]
+        )
+        
+        # Calculate squared error between actual and target joint velocities
         error = torch.square(asset.data.joint_vel - animation_joint_vel)
-        # Sum error only across the specified joints
+        
+        # Calculate reward using negative exponential of error
         reward = torch.exp(-torch.sum(error, dim=1) / std)
         
-        return torch.where(torch.logical_or(cmd > 0.0, cmd < 0.3), reward, 0.0)
-        # return reward
+        # reward = torch.sum(error, dim=1)
+        
+        # Return the reward with velocity condition applied
+        return torch.where(torch.logical_or(cmd > 0.0, body_vel < velocity_threshold), reward, torch.zeros_like(reward))
     
-    def __read_next_pose__(self, device=None, NUM_INSTANCES=None, NUM_JOINTS=None):
+    def __get_joint_velocities__(self, env, NUM_ENVS=None, NUM_JOINTS=None):
         """
-        Read the next pose from the file and return as a PyTorch tensor.
-        When reaching the end of file, loops back to the beginning.
-        Each pose is repeated for NUM_INSTANCES times.
+        Get joint velocities for each environment based on the motion_sequence_context.
+        Uses pre-loaded tensor data for efficiency.
         
         Args:
-            device: The device to place the tensor on (default: None, uses self.device)
+            env: The environment instance
+            NUM_ENVS: Number of environments
+            NUM_JOINTS: Number of joints in each pose
             
         Returns:
-            torch.Tensor: Tensor of shape (NUM_INSTANCES, NUM_JOINTS) containing joint angles
+            torch.Tensor: Tensor of shape (NUM_ENVS, NUM_JOINTS) containing joint velocities
         """
-        # If no device specified, use the stored device
-        # if device is None:
-        #     device = self.device
-            
-        # If we reach the end, loop back to beginning
-        if self.current_line >= self.total_frames:
-            self.current_line = 0
-            
-        # Read the current line and split into values
-        line = self.lines[self.current_line]
-        values = line.strip().split()
+        # Check tensor dimensions and reshape if needed
+        if self.joint_vels_tensor.shape[1] != NUM_JOINTS:
+            print(f"Warning: Joint velocity tensor has {self.joint_vels_tensor.shape[1]} joints, but asset has {NUM_JOINTS}.")
+            # If we have fewer joints than expected, pad with zeros
+            if self.joint_vels_tensor.shape[1] < NUM_JOINTS:
+                padding = torch.zeros((self.total_frames, NUM_JOINTS - self.joint_vels_tensor.shape[1]), 
+                                     device=self._current_device)
+                padded_tensor = torch.cat([self.joint_vels_tensor, padding], dim=1)
+                return padded_tensor[0].repeat(NUM_ENVS, 1)
+            # If we have more joints than expected, truncate
+            else:
+                truncated_tensor = self.joint_vels_tensor[:, :NUM_JOINTS]
+                return truncated_tensor[0].repeat(NUM_ENVS, 1)
         
-        # Convert to float and create tensor
-        joint_vels = [float(x) for x in values]
-        single_pose_tensor = torch.tensor(joint_vels, device=device).reshape(1, NUM_JOINTS)
+        # Fast path: check if motion sequence context exists
+        if not hasattr(env, "_motion_sequence_context"):
+            # Use frame 0 for all environments if context doesn't exist
+            return self.joint_vels_tensor[0].repeat(NUM_ENVS, 1)
         
-        # Repeat the pose NUM_INSTANCES times
-        # pose_tensor = single_pose_tensor.repeat(NUM_INSTANCES, 1)
+        # Get raw counter values from motion sequence context
+        context = env._motion_sequence_context
+        raw_counter_key = "raw_motion_sequence_counter"
         
-        # Increment line counter
-        self.current_line += 1
-        if NUM_INSTANCES > 1:
-            # For operations that need exact dimensions, we can expand (doesn't allocate new memory)
-            return single_pose_tensor.expand(NUM_INSTANCES, NUM_JOINTS)
-        else:
-            return single_pose_tensor
-        # return pose_tensor
+        if raw_counter_key not in context:
+            # Use frame 0 for all environments if counters don't exist
+            return self.joint_vels_tensor[0].repeat(NUM_ENVS, 1)
+        
+        # Get the current counters for all environments
+        raw_counters = context[raw_counter_key]
+        
+        # Clamp indices to valid range
+        indices = raw_counters[:, 0].long().clamp(0, self.total_frames - 1)
+        
+        # Use advanced indexing to get all joint velocities at once - much faster!
+        # This selects the appropriate velocities for each environment in a single operation
+        return self.joint_vels_tensor[indices]
 
+class ContactPhaseReward(ManagerTermBase):
+    """Reward that checks if foot contacts match the expected gait pattern.
+    
+    Uses the motion_sequence_counter to determine which contact phase should be active,
+    and rewards environments based on how many feet match the expected contact pattern.
+    The reward ranges from 0 to 4, representing the count of correctly matched contacts.
+    """
+    def __init__(self, cfg: RewardTermCfg, env: ManagerBasedRLEnv):
+        """Initialize the term.
+        
+        Args:
+            cfg: The configuration of the reward.
+            env: The RL environment instance.
+        """
+        super().__init__(cfg, env)
+        
+        # Extract parameters from configuration
+        self.asset_cfg = cfg.params["asset_cfg"]
+        self.sensor_cfg = cfg.params["sensor_cfg"]
+        self.threshold = cfg.params["threshold"]
+        self.contact_phases = cfg.params["contact_phases"]
+        self.total_phases = len(self.contact_phases)
+        
+        # Pre-compute the expected contacts for each phase and convert to tensor
+        # This avoids string parsing during the reward calculation
+        self.expected_contacts_tensor = torch.zeros((self.total_phases, 4), dtype=torch.bool)
+        for i, phase in enumerate(self.contact_phases):
+            for j, state in enumerate(phase):
+                self.expected_contacts_tensor[i, j] = (state == '1')
+        
+        # Store device reference
+        self._device = None
+        
+        print(f"ContactPhaseReward initialized with {self.total_phases} contact phases")
+        
+    def __call__(
+        self,
+        env: ManagerBasedRLEnv,
+        asset_cfg: SceneEntityCfg,
+        sensor_cfg: SceneEntityCfg,
+        threshold: float,
+        contact_phases: List[str]
+    ) -> torch.Tensor:
+        """Calculate reward based on matching foot contacts with the expected pattern.
+        
+        Args:
+            env: The environment.
+            asset_cfg: Configuration for the robot asset with foot bodies.
+            sensor_cfg: Configuration for the contact sensor.
+            threshold: Threshold to determine if a foot is in contact.
+            contact_phases: List of contact phase patterns as strings (e.g., '1010').
+            
+        Returns:
+            Reward tensor with shape (num_envs,) where each value is between 0 and 4
+            representing the sum of correctly matched foot contacts.
+        """
+        # Extract the asset to get the number of environments and device
+        asset: Articulation = env.scene[asset_cfg.name]
+        num_envs = asset.data.joint_pos.shape[0]
+        device = asset.data.joint_pos.device
+        
+        # Move expected contacts tensor to the correct device if needed
+        if self._device != device:
+            self._device = device
+            self.expected_contacts_tensor = self.expected_contacts_tensor.to(device)
+        
+        # Get the current motion sequence counter for each environment
+        # Fast path: Use motion_sequence_context if available
+        if hasattr(env, "_motion_sequence_context"):
+            context = env._motion_sequence_context
+            raw_counter_key = "raw_motion_sequence_counter"
+            
+            if raw_counter_key in context:
+                phase_indices = context[raw_counter_key][:, 0].long() % self.total_phases
+            else:
+                # Fallback if no counter exists
+                phase_indices = torch.zeros(num_envs, dtype=torch.long, device=device)
+        else:
+            # Check if motion_sequence_counter exists in env.extras
+            counter_key = "motion_sequence_counter"
+            
+            if counter_key in env.extras:
+                phase_indices = env.extras[counter_key][:, 0].long() % self.total_phases
+            else:
+                # Fallback if no counter exists
+                phase_indices = torch.zeros(num_envs, dtype=torch.long, device=device)
+        
+        # Get contact sensor and check contacts efficiently
+        contact_sensor: ContactSensor = env.scene.sensors[sensor_cfg.name]
+        net_contact_forces = contact_sensor.data.net_forces_w_history
+        
+        # Efficiently check contacts for all feet at once
+        # Assume body_ids are ordered as [FL, FR, RL, RR]
+        body_ids = sensor_cfg.body_ids
+        num_feet = 4  # Assuming exactly 4 feet for a quadruped
+        
+        # Pre-allocate actual contacts tensor
+        actual_contacts = torch.zeros((num_envs, num_feet), device=device, dtype=torch.bool)
+        
+        # Vectorized contact detection for performance
+        for i in range(num_feet):
+            foot_id = body_ids[i] if isinstance(body_ids, list) else i
+            
+            # Max force over time dimension (dim=1) for this foot
+            max_forces = torch.max(torch.norm(net_contact_forces[:, :, foot_id], dim=-1), dim=1)[0]
+            actual_contacts[:, i] = max_forces > threshold
+        
+        # Select the expected contacts for each environment based on its phase index
+        # This is much faster than looping through environments
+        expected_contacts = self.expected_contacts_tensor[phase_indices]
+        
+        # Calculate matches between expected and actual contacts
+        # Instead of requiring all contacts to match, count how many match
+        # This creates a tensor of shape (num_envs, num_feet) with 1.0 where contacts match
+        contact_matches = (actual_contacts == expected_contacts).float()
+        
+        # Sum the matches for each environment without normalizing
+        # Result shape: (num_envs,)
+        return torch.sum(contact_matches, dim=1) / num_feet
